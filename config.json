@@ -1,0 +1,18 @@
+{
+    "node":{
+        "ip":"localhost",
+        "id":0
+    },
+    "NET":{
+        "port":5002,
+        "id":"NODE_SERIAL_NUMBER",
+        "radio":"USRP",
+        "ip":""
+    },
+    "AI":{
+        "port":5003
+    },
+    "blockchain":{
+        "port":5004
+    }
+}
