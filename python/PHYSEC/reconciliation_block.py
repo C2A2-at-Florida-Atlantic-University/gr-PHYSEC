@@ -24,7 +24,7 @@ class reconciliation_block(gr.sync_block):
             self,
             name="PHYSEC Reconciliation Block",
             in_sig=[(np.uint8, key_length), (np.uint8, n-k)],  # Binary key + parity bits input
-            out_sig=[(np.uint8, key_length)]  # Reconciled key output
+            out_sig=[(np.uint8, k)]  # Reconciled key output
         )
         
         # Store parameters
@@ -69,19 +69,24 @@ class reconciliation_block(gr.sync_block):
             hex_str = hex(int(binary_str, 2))
             hex_str = str(hex_str[2:])  # Remove '0x' prefix
             
+            # Convert parity bits which is a np.uint8 array to a unicode string
+            parity2unicode = str(''.join(chr(bit) for bit in parity_bits))            
             # Combine key with parity bits
-            combined_data = hex_str + parity_bits
+            combined_data = hex_str + parity2unicode
             print(f"Combined data: {len(hex_str)} + {len(parity_bits)} = {len(combined_data)} hex chars")
             
             try:
                 # Attempt to decode using Reed-Solomon
                 decoded = self.coder.decode(combined_data)
                 reconciled_hex = decoded[0]  # Get the decoded message
+                # Convert the hex string to a binary array
+                # reconciled_binary = np.array([int(char) for char in reconciled_hex], dtype=np.uint8)
+                reconciled_binary = np.array([ord(char) for char in reconciled_hex], dtype=np.uint8)
                 
                 print(f"RS decoding successful: {len(combined_data)} -> {len(decoded[0])} hex chars")
                 
                 print(f"Reconciliation successful: input_bits={len(binary_key)}, output_bits={len(reconciled_hex)}")
-                return reconciled_hex
+                return reconciled_binary
                 
             except Exception as decode_error:
                 print(f"Reconciliation failed: {decode_error}")

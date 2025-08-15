@@ -23,7 +23,7 @@ class privacy_amplification_block(gr.sync_block):
         gr.sync_block.__init__(
             self,
             name="PHYSEC Privacy Amplification Block",
-            in_sig=[(np.uint8, 512)],  # Binary key input
+            in_sig=[(np.uint8, 128)],  # Binary key input
             out_sig=[(np.uint8, 128)]  # Final key output (128 bytes = 1024 bits)
         )
         
@@ -47,7 +47,9 @@ class privacy_amplification_block(gr.sync_block):
         """
         try:            
             # Encode the string to bytes
-            encoded_str = data.encode()
+            # Convert the binary array to a unicode string
+            data_unicode = ''.join(chr(bit) for bit in data)
+            encoded_str = data_unicode.encode()
             
             # Create hash object based on algorithm
             if self.hash_algorithm == "sha3_512":
@@ -68,7 +70,12 @@ class privacy_amplification_block(gr.sync_block):
             print(f"Key hex: {key_hex}")
             print(f"Key hex length: {len(key_hex)}")
             print(f"Key hex data type: {type(key_hex)}")
-            return key_hex
+            # Convert the hex string to a binary array
+            key_binary = np.array([ord(char) for char in key_hex], dtype=np.uint8)
+            print(f"Key binary: {key_binary}")
+            print(f"Key binary length: {len(key_binary)}")
+            print(f"Key binary data type: {type(key_binary)}")
+            return key_binary
             
         except Exception as e:
             print(f"Error in privacy amplification: {e}")

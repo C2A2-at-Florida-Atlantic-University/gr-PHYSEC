@@ -10,5 +10,10 @@
 # Install gnuradio companion (grc) block descriptions
 ########################################################################
 install(FILES
-    PHYSEC_fingerprint_block.block.yml
+    PHYSEC_spectrogram_block.block.yml
+    PHYSEC_feature_extraction_block.block.yml
+    PHYSEC_feature_quantization_block.block.yml
+    PHYSEC_parity_generation_block.block.yml
+    PHYSEC_reconciliation_block.block.yml
+    PHYSEC_privacy_amplification_block.block.yml
     DESTINATION share/gnuradio/grc/blocks)

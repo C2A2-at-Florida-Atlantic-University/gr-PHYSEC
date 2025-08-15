@@ -26,8 +26,8 @@ import numpy as np
 import time
 import h5py
 
-# Add AI directory to path for imports
-ai_dir = '/workspace/gr-PHYSEC/AI'
+# Include the AI path at /workspace/siwn/siwn-node/AI
+ai_dir = '/workspace/siwn/siwn-node/AI'
 if ai_dir not in sys.path:
     sys.path.append(ai_dir)
 
@@ -69,7 +69,7 @@ def test_individual_blocks():
     print("-" * 40)
     
     # Create feature extraction block
-    model_path = "/workspace/gr-PHYSEC/models/QExtractor.onnx"
+    model_path = "/workspace/data/gr-PHYSEC/models/QExtractor.onnx"
     feat_block = feature_extraction_block(model_path)
     
     # Test feature extraction
@@ -163,7 +163,7 @@ def test_complete_pipeline():
         
         # Load test data
         print("Loading test data...")
-        PHYSEC_dir = '/workspace/gr-PHYSEC/'
+        PHYSEC_dir = '/workspace/data/gr-PHYSEC/'
         dataset_path = PHYSEC_dir + 'datasets/'
         dataset = dataset_path + 'Dataset_Channels_sinusoid_dev_871_1690302750.hdf5'
         
@@ -178,7 +178,7 @@ def test_complete_pipeline():
         print("\nInitializing blocks...")
         
         spec_block = spectrogram_block(fft_window=512, vector_size=len(test_data[0]))
-        model_path = "/workspace/gr-PHYSEC/models/QExtractor.onnx"
+        model_path = "/workspace/data/gr-PHYSEC/models/QExtractor.onnx"
         feat_block = feature_extraction_block(model_path)
         quant_block = feature_quantization_block(quantization_method="mean_threshold")
         k = int(512/4)
@@ -298,36 +298,33 @@ def test_stream_connectivity():
     try:
         from dataset_preparation import LoadDatasetChannels
         # Create mock data
-        # test_iq = np.load('/workspace/gr-PHYSEC/datasets/Dataset_Channels_sinusoid_dev_871_1690302750.hdf5')
-        dataset_path = '/workspace/gr-PHYSEC/datasets/'
+        # test_iq = np.load('/workspace/data/gr-PHYSEC/datasets/Dataset_Channels_sinusoid_dev_871_1690302750.hdf5')
+        dataset_path = '/workspace/data/gr-PHYSEC/datasets/'
         dataset = dataset_path + 'Dataset_Channels_sinusoid_dev_871_1690302750.hdf5'
         LoadDatasetObj = LoadDatasetChannels()
         data, labels = LoadDatasetObj.load_iq_samples(dataset)
         number_of_test_samples = 10
         quantized_features = []
+        fft_window = 512
+        iq_length = 8192
+        spec_block = spectrogram_block(fft_window=fft_window, vector_size=iq_length)
+        model_path = "/workspace/data/gr-PHYSEC/models/QExtractor.onnx"
+        feat_block = feature_extraction_block(model_path)
+        quant_block = feature_quantization_block(quantization_method="mean_threshold")
+        key_length = 512
+        k = int(key_length/4)
+        n = int(k+(k/1)-1)
+        print(f"K: {k}")
+        print(f"N: {n}")
+        print(f"Key length: {key_length}")
+        parity_block = parity_generation_block(n=n, k=k, key_length=key_length)
+        recon_block = reconciliation_block(n=n, k=k, key_length=key_length)
+        priv_block = privacy_amplification_block(hash_algorithm="sha3_512")
+        # Simulate stream processing
+        print("Simulating stream processing...")
         for test_iq in data[:number_of_test_samples]:
-            iq_length = len(test_iq)
+            # iq_length = len(test_iq)
             # test_iq = test_iq.astype(np.complex64)
-            
-            # Create block instances
-            fft_window = 512
-            spec_block = spectrogram_block(fft_window=fft_window, vector_size=iq_length)
-            model_path = "/workspace/gr-PHYSEC/models/QExtractor.onnx"
-            feat_block = feature_extraction_block(model_path)
-            quant_block = feature_quantization_block(quantization_method="mean_threshold")
-            key_length = 512
-            k = int(key_length/4)
-            n = int(k+(k/1)-1)
-            print(f"K: {k}")
-            print(f"N: {n}")
-            print(f"Key length: {key_length}")
-            parity_block = parity_generation_block(n=n, k=k, key_length=key_length)
-            recon_block = reconciliation_block(n=n, k=k, key_length=key_length)
-            priv_block = privacy_amplification_block(hash_algorithm="sha3_512")
-            
-            # Simulate stream processing
-            print("Simulating stream processing...")
-            
             # Input data
             input_items = [[test_iq]]
             output_items = [np.zeros((1, 204, 31), dtype=np.float32)]
@@ -393,7 +390,7 @@ def test_stream_connectivity():
             print("\n✓ Stream connectivity test successful!")
             print(f"  Final key generated: {len(final_key_output)} bytes")
         
-        # Get the quantized features from /workspace/gr-PHYSEC/datasets/Dataset_Channels_quantized_TF38Model_dev_871_1690302750.hdf5
+        # Get the quantized features from /workspace/data/gr-PHYSEC/datasets/Dataset_Channels_quantized_TF38Model_dev_871_1690302750.hdf5
         quantized_features_path = dataset_path + 'Dataset_Channels_quantized_TF38Model_dev_871_1690302750.hdf5'
         with h5py.File(quantized_features_path, 'r') as f:
             quantized_features_TF38 = f['quantized_keys'][:]

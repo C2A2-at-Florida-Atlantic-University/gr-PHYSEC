@@ -11,7 +11,6 @@ gr-PHYSEC: Physical Layer Security Channel Fingerprinting Module
 """
 
 # import any pure python here
-from .fingerprint_block import fingerprint_block
 from .spectrogram_block import spectrogram_block
 from .feature_extraction_block import feature_extraction_block
 from .feature_quantization_block import feature_quantization_block

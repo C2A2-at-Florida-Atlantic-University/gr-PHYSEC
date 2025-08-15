@@ -72,41 +72,95 @@ You should see a new category `[PHYSEC]` with the `PHYSEC Fingerprint Block`.
 from gnuradio import gr
 from gnuradio import PHYSEC
 
-# Create fingerprint block
-fingerprint = PHYSEC.fingerprint_block(
-    model_path="/path/to/QExtractor.h5",
-    model_type="quadruplet",
-    spectrogram_size=512,
+# Create decoupled PHYSEC blocks
+spectrogram = PHYSEC.spectrogram_block(
+    vector_size=512,
     sample_rate=1e6,
-    center_freq=2.4e9,
-    key_length=128
+    center_freq=2.4e9
 )
+
+feature_extractor = PHYSEC.feature_extraction_block(
+    model_path="/path/to/QExtractor.onnx"
+)
+
+feature_quantizer = PHYSEC.feature_quantization_block(
+    threshold_type="mean"
+)
+
+parity_generator = PHYSEC.parity_generation_block(
+    key_length=512
+)
+
+reconciler = PHYSEC.reconciliation_block(
+    key_length=512
+)
+
+privacy_amplifier = PHYSEC.privacy_amplification_block()
 ```
 
 ### Example Flowgraph
 
-See `examples/fingerprint_example.grc` for a complete example flowgraph.
+See `examples/decoupled_physic_example.grc` for a complete example flowgraph using the decoupled PHYSEC blocks.
 
 ## Block Parameters
 
+### Spectrogram Block
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `model_path` | string | - | Path to QExtractor.h5 model file |
-| `model_type` | string | "quadruplet" | Model type: "quadruplet" or "triplet" |
-| `spectrogram_size` | int | 512 | FFT size for spectrogram creation |
+| `vector_size` | int | 512 | FFT size for spectrogram creation |
 | `sample_rate` | float | 1e6 | SDR sample rate in Hz |
 | `center_freq` | float | 2.4e9 | SDR center frequency in Hz |
-| `key_length` | int | 128 | Desired cryptographic key length |
+
+### Feature Extraction Block
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `model_path` | string | - | Path to ONNX model file |
+
+### Feature Quantization Block
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `threshold_type` | string | "mean" | Threshold method: "mean", "median", or "zero" |
+
+### Parity Generation Block
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `key_length` | int | 512 | Length of binary key for parity generation |
+
+### Reconciliation Block
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `key_length` | int | 512 | Length of binary key for reconciliation |
+
+### Privacy Amplification Block
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| No parameters required | - | - | Applies SHA3-512 hashing |
 
 ## Input/Output
 
-### Input
-- **Stream Input**: Complex IQ samples from SDR
+### Spectrogram Block
+- **Input**: Complex IQ samples from SDR
+- **Output**: Spectrogram data (204×31 float values)
 
-### Output (Message Ports)
-- **`fingerprint_out`**: Generated cryptographic fingerprint
-- **`features_out`**: Quantized features for debugging
-- **`spectrogram_out`**: Spectrogram data for debugging
+### Feature Extraction Block
+- **Input**: Spectrogram data (204×31 float values)
+- **Output**: Feature vector (512 float values)
+
+### Feature Quantization Block
+- **Input**: Feature vector (512 float values)
+- **Output**: Binary features (512 uint8 values)
+
+### Parity Generation Block
+- **Input**: Binary features (512 uint8 values)
+- **Output**: Parity bits (string)
+
+### Reconciliation Block
+- **Input**: Binary features + Parity bits
+- **Output**: Reconciled binary key (string)
+
+### Privacy Amplification Block
+- **Input**: Binary features (512 uint8 values)
+- **Output**: Final cryptographic key (128 bytes)
 
 ## Message Format
 
@@ -123,19 +177,22 @@ The fingerprint output message contains:
 
 ## Processing Pipeline
 
-1. **IQ Sample Collection**: Buffer incoming IQ samples
-2. **Spectrogram Creation**: Convert IQ samples to spectrogram using FFT
-3. **Feature Extraction**: Use trained model to extract channel features
-4. **Feature Quantization**: Convert features to binary values
-5. **Privacy Amplification**: Apply SHA3-512 hashing for key generation
-6. **Output**: Send results via message ports
+1. **IQ Sample Collection**: Buffer incoming IQ samples using Stream to Vector
+2. **Spectrogram Creation**: Convert IQ samples to spectrogram using STFT, RMS normalization, and frequency cropping
+3. **Feature Extraction**: Use ONNX model to extract channel features
+4. **Feature Quantization**: Convert features to binary values using configurable thresholds
+5. **Parity Generation**: Generate Reed-Solomon parity bits for error correction
+6. **Key Reconciliation**: Correct errors using parity bits
+7. **Privacy Amplification**: Apply SHA3-512 hashing for final key generation
+8. **Output**: Stream-based communication between blocks
 
 ## Model Requirements
 
-Your QExtractor.h5 model should:
-- Accept input shape: `(batch, height, width, channels)` or `(batch, 1, spectrogram_size, 1)`
-- Output feature vectors that can be quantized
-- Be compatible with TensorFlow 2.x
+Your ONNX model should:
+- Accept input shape: `(batch, 204, 31)` for spectrogram data
+- Output feature vectors of length 512
+- Be compatible with ONNX Runtime
+- Support float32 input/output
 
 ## Troubleshooting
 
@@ -157,8 +214,8 @@ The block provides extensive debug information:
 
 ### Adding New Features
 
-1. Modify `fingerprint_block.py`
-2. Update the GRC block definition in `grc/`
+1. Modify the appropriate specialized block (e.g., `spectrogram_block.py`)
+2. Update the corresponding GRC block definition in `grc/`
 3. Rebuild the module
 4. Test with examples
 

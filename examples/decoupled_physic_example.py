@@ -79,7 +79,7 @@ class decoupled_physic_example(gr.top_block, Qt.QWidget):
         ##################################################
         self.vectorSize = vectorSize = 8192
         self.sampleRate = sampleRate = 1000000
-        self.modelPath = modelPath = "/workspace/gr-PHYSEC/models/QExtractor.onnx"
+        self.modelPath = modelPath = "/workspace/data/gr-PHYSEC/models/QExtractor.onnx"
         self.fftWindow = fftWindow = 512
         self.centerFrequency = centerFrequency = 2400000000
 
@@ -140,9 +140,14 @@ class decoupled_physic_example(gr.top_block, Qt.QWidget):
         self.iio_pluto_source_0.set_filter_params('Auto', '', 0, 0)
         self.blocks_throttle_0 = blocks.throttle(gr.sizeof_gr_complex*1, sampleRate,True)
         self.blocks_stream_to_vector_0 = blocks.stream_to_vector(gr.sizeof_gr_complex*1, vectorSize)
+        self.blocks_file_sink_0_0 = blocks.file_sink(gr.sizeof_char*128, '/tmp/keys.txt', False)
+        self.blocks_file_sink_0_0.set_unbuffered(False)
         self.blocks_file_sink_0 = blocks.file_sink(gr.sizeof_char*512, '/tmp/physic_quantized_features.txt', False)
         self.blocks_file_sink_0.set_unbuffered(False)
         self.PHYSEC_spectrogram_block_0 = PHYSEC.spectrogram_block(fftWindow, vectorSize)
+        self.PHYSEC_reconciliation_block_0 = PHYSEC.reconciliation_block(255, 128, 512)
+        self.PHYSEC_privacy_amplification_block_0 = PHYSEC.privacy_amplification_block('sha3_512')
+        self.PHYSEC_parity_generation_block_0 = PHYSEC.parity_generation_block(255, 128, 512)
         self.PHYSEC_feature_quantization_block_0 = PHYSEC.feature_quantization_block('mean_threshold')
         self.PHYSEC_feature_extraction_block_0 = PHYSEC.feature_extraction_block(modelPath)
 
@@ -151,7 +156,12 @@ class decoupled_physic_example(gr.top_block, Qt.QWidget):
         # Connections
         ##################################################
         self.connect((self.PHYSEC_feature_extraction_block_0, 0), (self.PHYSEC_feature_quantization_block_0, 0))
+        self.connect((self.PHYSEC_feature_quantization_block_0, 0), (self.PHYSEC_parity_generation_block_0, 0))
+        self.connect((self.PHYSEC_feature_quantization_block_0, 0), (self.PHYSEC_reconciliation_block_0, 0))
         self.connect((self.PHYSEC_feature_quantization_block_0, 0), (self.blocks_file_sink_0, 0))
+        self.connect((self.PHYSEC_parity_generation_block_0, 0), (self.PHYSEC_reconciliation_block_0, 1))
+        self.connect((self.PHYSEC_privacy_amplification_block_0, 0), (self.blocks_file_sink_0_0, 0))
+        self.connect((self.PHYSEC_reconciliation_block_0, 0), (self.PHYSEC_privacy_amplification_block_0, 0))
         self.connect((self.PHYSEC_spectrogram_block_0, 0), (self.PHYSEC_feature_extraction_block_0, 0))
         self.connect((self.blocks_stream_to_vector_0, 0), (self.PHYSEC_spectrogram_block_0, 0))
         self.connect((self.blocks_throttle_0, 0), (self.blocks_stream_to_vector_0, 0))

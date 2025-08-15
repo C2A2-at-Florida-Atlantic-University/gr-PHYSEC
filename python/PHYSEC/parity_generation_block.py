@@ -24,7 +24,9 @@ class parity_generation_block(gr.sync_block):
             self,
             name="PHYSEC Parity Generation Block",
             in_sig=[(np.uint8, key_length)],  # Binary key input
-            out_sig=[(np.uint8, n-k)]  # Parity bits output
+            # out_sig=[(np.uint8, n-k)]  # Parity bits output
+            #Output is a string of size n-k
+            out_sig=[(np.uint8, n-k)]
         )
         
         # Store parameters
@@ -62,43 +64,25 @@ class parity_generation_block(gr.sync_block):
         """
         try:            
             # Convert binary array to hex string
-            # print(f"Binary key: {binary_key}")
-            # print(f"Binary key length: {len(binary_key)}")
+            
             # Convert to hex (this will be truncated to fit in k symbols)
             # For RS(255, 128), we can handle up to 128 hex characters
             # 512 bits = 64 hex characters, which fits within k=128
             strKey = self.arr2str(binary_key)   
-            # print(f"String key: {strKey}")
-            # print(f"String key length: {len(strKey)}")
+            
             hex_str = hex(int(strKey, 2))
             hex_str = str(hex_str[2:])  # Remove '0x' prefix
-            # print(f"Hex string: {hex_str}")
-            # print(f"Hex string length: {len(hex_str)}")
             # Encode using Reed-Solomon
             encoded = self.coder.encode(hex_str)
-            # print(f"Encoded: {encoded}")
-            # print(f"Encoded length: {len(encoded)}")
-            parity_bits = encoded[self.k:]  # Extract parity bits
-            # print(f"Parity bits: {parity_bits}")
-            # print(f"Parity bits length: {len(parity_bits)}")
-            
-            # Check the data type of the parity bits
-            # print(f"Parity bits data type: {type(parity_bits)}")
-            
-            # Convert parity hex string back to binary array
-            # parity_binary = []
-            # for hex_char in parity_bits:
-            #     # Convert each hex character to 4 binary bits
-            #     binary = format(int(hex_char, 16), '04b')
-            #     parity_binary.extend([int(bit) for bit in binary])
-            
-            # Ensure we have exactly s parity bits
-            # parity_array = np.array(parity_binary[:self.s], dtype=np.uint8)
-            
-            print(f"Generated parity: input_bits={len(binary_key)}, parity_bits={len(parity_bits)}")
+            parity_symbols = encoded[self.k:]  # Extract parity symbols
+            print(f"Generated parity: input_bits={len(binary_key)}, parity_bits={len(parity_symbols)}")
             print(f"  RS Code: ({self.n}, {self.k})")
             
-            return parity_bits
+            # Convert parity symbols which is a unicodestring to expected output np.uint8
+            parity_symbols_list = [ord(char) for char in parity_symbols]
+            parity_symbols_uint8 = np.array(parity_symbols_list, dtype=np.uint8)
+            
+            return parity_symbols_uint8
             
         except Exception as e:
             print(f"Error in parity generation: {e}")
@@ -128,11 +112,17 @@ class parity_generation_block(gr.sync_block):
             for i in range(num_input_items):
                 # Get the current binary key
                 binary_key = in0[i]
+                
                 # Generate parity bits
                 parity_bits = self.generate_parity(binary_key)
                 
-                out0[i] = parity_bits
-                print(f"✓ Generated parity bits: {len(parity_bits)} bits")
+                if parity_bits is not None:
+                    out0[i] = parity_bits
+                    print(f"✓ Generated parity bits: {len(parity_bits)} bits")
+                else:
+                    print(f"✗ Failed to generate parity bits for key {i}")
+                    # Fill with zeros if generation failed
+                    out0[i] = np.zeros(self.s * 4, dtype=np.uint8)
                 
             
             return num_input_items
@@ -157,8 +147,7 @@ if __name__ == "__main__":
     # Test parity generation
     parity_bits = block.generate_parity(test_binary_key)
     if parity_bits is not None:
-        print(f"✓ Test successful! Parity bits shape: {parity_bits.shape}")
+        print(f"✓ Test successful! Parity bits length: {len(parity_bits)}")
         print(f"  Parity bits: {parity_bits[:10]}...")
-        print(f"  Binary distribution: {np.bincount(parity_bits)}")
     else:
         print("✗ Test failed!")

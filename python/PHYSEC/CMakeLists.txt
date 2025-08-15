@@ -21,7 +21,6 @@ add_subdirectory(bindings)
 ########################################################################
 gr_python_install(FILES
                   __init__.py
-                  fingerprint_block.py
                   spectrogram_block.py
                   feature_extraction_block.py
                   feature_quantization_block.py

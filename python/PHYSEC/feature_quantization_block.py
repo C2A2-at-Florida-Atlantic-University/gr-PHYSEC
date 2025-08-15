@@ -110,8 +110,14 @@ class feature_quantization_block(gr.sync_block):
                 # Quantize features
                 quantized_features = self.feature_quantization(features)
 
-                out0[i] = quantized_features
-                print(f"✓ Quantized features: {len(quantized_features)} bits")
+                if quantized_features is not None:
+                    
+                    out0[i] = quantized_features
+                    print(f"✓ Quantized features: {len(quantized_features)} bits")
+                else:
+                    print(f"✗ Failed to quantize features for vector {i}")
+                    # Fill with zeros if quantization failed
+                    out0[i] = np.zeros(512, dtype=np.uint8)
 
             
             return num_input_items
