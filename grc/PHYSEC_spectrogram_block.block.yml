@@ -1,0 +1,48 @@
+id: PHYSEC_spectrogram_block
+label: PHYSEC Spectrogram Block
+flags: '[python]'
+category: '[PHYSEC]'
+
+templates:
+  imports: |
+    from gnuradio import PHYSEC
+  make: PHYSEC.spectrogram_block(${fft_window}, ${vector_size})
+
+parameters:
+- id: fft_window
+  label: FFT Window Size
+  dtype: int
+  default: 512
+
+- id: vector_size
+  label: Vector Size
+  dtype: int
+  default: 8192
+
+inputs:
+- domain: stream
+  dtype: complex
+  vlen: '${vector_size}'
+
+outputs:
+- domain: stream
+  dtype: float
+  vlen: 6324
+
+file_format: 1
+
+documentation: |
+  Spectrogram Creation Block for Physical Layer Security
+  
+  This block converts IQ samples to spectrograms using Short-Time Fourier Transform (STFT).
+  The spectrograms are used as input to the feature extraction neural network.
+  
+  Parameters:
+  - FFT Window Size: Size of the FFT window for STFT calculation
+  - Vector Size: Size of the input IQ sample vector
+  
+  Input: Complex IQ samples from SDR
+  Output: Flattened spectrogram data (204*31 = 6324 float values)
+  
+  The spectrogram is created using the same parameters as in the training dataset
+  to ensure compatibility with the trained neural network model.

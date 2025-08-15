@@ -1,0 +1,208 @@
+options:
+  parameters:
+    author: gr-PHYSEC Example
+    catch_exceptions: 'True'
+    category: Examples
+    cmake_opt: ''
+    comment: Example flowgraph for PHYSEC channel fingerprinting using FFT-based spectrograms
+    copyright: ''
+    description: Demonstrates channel fingerprinting using the PHYSEC block with FFT
+      spectrogram generation
+    gen_cmake: 'On'
+    gen_linking: dynamic
+    generate_options: qt_gui
+    hier_block_src_path: '.:src:'
+    id: fingerprint_example
+    max_nouts: '0'
+    output_language: python
+    placement: (0,0)
+    qt_qss_theme: ''
+    realtime_scheduling: ''
+    run: 'True'
+    run_command: '{python} -u {filename}'
+    run_options: prompt
+    sizing_mode: fixed
+    thread_safe_setters: ''
+    title: PHYSEC Fingerprint Example - FFT Spectrogram
+    window_size: ''
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [0, 0.0]
+    qt_gui_hint: (0,0)
+    rotation: 0
+    state: true
+
+blocks:
+- name: centerFrequency
+  id: variable
+  parameters:
+    comment: Center frequency for SDR (2.4 GHz)
+    value: '2400000000'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [576, 36.0]
+    rotation: 0
+    state: enabled
+- name: keyLength
+  id: variable
+  parameters:
+    comment: Cryptographic key length in bits
+    value: '128'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [200, 100.0]
+    rotation: 0
+    state: enabled
+- name: sampleRate
+  id: variable
+  parameters:
+    comment: Sample rate for SDR (50 MHz)
+    value: '1000000'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [424, 36.0]
+    rotation: 0
+    state: enabled
+- name: vectorSize
+  id: variable
+  parameters:
+    comment: Vector size for FFT processing (4096 samples = 2^12)
+    value: '8192'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [256, 20.0]
+    rotation: 0
+    state: enabled
+- name: PHYSEC_fingerprint_block_0
+  id: PHYSEC_fingerprint_block
+  parameters:
+    affinity: ''
+    alias: ''
+    center_freq: centerFrequency
+    comment: PHYSEC fingerprinting block using FFT spectrograms
+    key_length: keyLength
+    model_path: /workspace/gr-PHYSEC/models/QExtractor.onnx
+    model_type: quadruplet
+    sample_rate: sampleRate
+    vector_size: vectorSize
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [712, 228.0]
+    rotation: 0
+    state: enabled
+- name: blocks_message_debug_0
+  id: blocks_message_debug
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: Debug output for fingerprint messages
+    en_uvec: 'True'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [816, 24.0]
+    rotation: 0
+    state: enabled
+- name: blocks_message_debug_1
+  id: blocks_message_debug
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: Debug output for generated keys
+    en_uvec: 'True'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1024, 16.0]
+    rotation: 0
+    state: enabled
+- name: blocks_stream_to_vector_0
+  id: blocks_stream_to_vector
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: Collects samples into vectors for FFT processing
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    num_items: vectorSize
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [496, 376.0]
+    rotation: 0
+    state: enabled
+- name: blocks_throttle_0
+  id: blocks_throttle
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: Throttle for testing (can be removed in production)
+    ignoretag: 'True'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    samples_per_second: sampleRate
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [296, 292.0]
+    rotation: 0
+    state: enabled
+- name: iio_pluto_source_0
+  id: iio_pluto_source
+  parameters:
+    affinity: ''
+    alias: ''
+    bandwidth: '20000000'
+    bbdc: 'True'
+    buffer_size: '32768'
+    comment: ADALM-PLUTO SDR source for IQ samples
+    filter: ''
+    filter_source: '''Auto'''
+    fpass: '0'
+    frequency: centerFrequency
+    fstop: '0'
+    gain1: '''slow_attack'''
+    len_tag_key: packet_len
+    manual_gain1: '64'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    quadrature: 'True'
+    rfdc: 'True'
+    samplerate: sampleRate
+    type: fc32
+    uri: '"ip:192.168.65.254"'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [32, 220.0]
+    rotation: 0
+    state: true
+
+connections:
+- [blocks_stream_to_vector_0, '0', PHYSEC_fingerprint_block_0, '0']
+- [blocks_throttle_0, '0', blocks_stream_to_vector_0, '0']
+- [iio_pluto_source_0, '0', blocks_throttle_0, '0']
+
+metadata:
+  file_format: 1

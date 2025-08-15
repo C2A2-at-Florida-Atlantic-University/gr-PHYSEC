@@ -67,6 +67,8 @@ class packetTransmit(gr.top_block):
         ##################################################
         self.packet_format_gr38=packet_format()
         self.mmse_resampler_xx_0=filter.mmse_resampler_cc(0, 1.0/((usrp_rate/samp_rate)*rs_ratio))
+        # TODO: Depending on SDR need to either use iio or usrp.
+        # TODO: Need to fall back to pluto sing.
         # self.iio_pluto_sink_0=iio.pluto_sink(SDR_ID, freq, samp_rate, bandwidth, buffer_size, True, gain, '', True)
         self.usrp_sink = uhd.usrp_sink(
             # device address string: blank => first USRP found

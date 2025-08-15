@@ -1,0 +1,63 @@
+id: PHYSEC_reconciliation_block
+label: PHYSEC Reconciliation Block
+flags: '[python]'
+category: '[PHYSEC]'
+
+templates:
+  imports: |
+    from gnuradio import PHYSEC
+  make: PHYSEC.reconciliation_block(${n}, ${k}, ${key_length})
+
+parameters:
+- id: n
+  label: Total Codeword Length
+  dtype: int
+  default: 255
+
+- id: k
+  label: Message Length
+  dtype: int
+  default: 128
+
+- id: key_length
+  label: Key Length
+  dtype: int
+  default: 512
+
+inputs:
+- domain: stream
+  dtype: byte
+  vlen: '${key_length}'
+- domain: stream
+  dtype: byte
+  vlen: '${n - k}'
+
+outputs:
+- domain: stream
+  dtype: byte
+  vlen: '${key_length}'
+
+file_format: 1
+
+documentation: |
+  Reconciliation Block for Physical Layer Security
+  
+  This block performs key reconciliation using Reed-Solomon error correction.
+  It takes a noisy key and parity bits to attempt to correct bit errors
+  and produce a reconciled key.
+  
+  Parameters:
+  - Total Codeword Length (n): Total length of the Reed-Solomon code
+  - Message Length (k): Length of the original message
+  - Key Length: Length of the input/output binary key
+  
+  Inputs:
+  - Binary key (key_length byte values: 0 or 1)
+  - Parity bits ((n-k) byte values)
+  
+  Output: Reconciled binary key (key_length byte values: 0 or 1)
+  
+  The block combines the noisy key with parity bits and uses Reed-Solomon
+  decoding to attempt error correction. If successful, it outputs a corrected
+  key; if not, it outputs the original key. This process enables Alice and
+  Bob to generate identical keys despite noise in the channel.

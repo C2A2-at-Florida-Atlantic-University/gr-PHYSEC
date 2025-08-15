@@ -1,0 +1,51 @@
+id: PHYSEC_privacy_amplification_block
+label: PHYSEC Privacy Amplification Block
+flags: '[python]'
+category: '[PHYSEC]'
+
+templates:
+  imports: |
+    from gnuradio import PHYSEC
+  make: PHYSEC.privacy_amplification_block(${hash_algorithm})
+
+parameters:
+- id: hash_algorithm
+  label: Hash Algorithm
+  dtype: string
+  default: "sha3_512"
+  options: [sha3_512, sha3_256, sha256]
+  option_labels: [SHA3-512, SHA3-256, SHA-256]
+
+inputs:
+- domain: stream
+  dtype: byte
+  vlen: 512
+
+outputs:
+- domain: stream
+  dtype: byte
+  vlen: 128
+
+file_format: 1
+
+documentation: |
+  Privacy Amplification Block for Physical Layer Security
+  
+  This block performs privacy amplification on the reconciled binary key
+  using cryptographic hash functions to generate the final cryptographic key.
+  
+  Parameters:
+  - Hash Algorithm: Cryptographic hash function to use
+    * SHA3-512: SHA-3 with 512-bit output (default)
+    * SHA3-256: SHA-3 with 256-bit output
+    * SHA-256: SHA-2 with 256-bit output
+  
+  Input: Reconciled binary key (512 byte values: 0 or 1)
+  Output: Final cryptographic key (128 byte values for SHA3-512)
+  
+  Privacy amplification serves two purposes:
+  1. Compresses the key to a fixed length
+  2. Ensures cryptographic strength by applying a one-way hash function
+  
+  The output is a cryptographically strong key that can be used for
+  encryption, authentication, or other security applications.

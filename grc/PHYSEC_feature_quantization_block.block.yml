@@ -1,0 +1,48 @@
+id: PHYSEC_feature_quantization_block
+label: PHYSEC Feature Quantization Block
+flags: '[python]'
+category: '[PHYSEC]'
+
+templates:
+  imports: |
+    from gnuradio import PHYSEC
+  make: PHYSEC.feature_quantization_block(${quantization_method})
+
+parameters:
+- id: quantization_method
+  label: Quantization Method
+  dtype: string
+  default: "mean_threshold"
+  options: [mean_threshold, median_threshold, zero_threshold]
+  option_labels: [Mean Threshold, Median Threshold, Zero Threshold]
+
+inputs:
+- domain: stream
+  dtype: float
+  vlen: 512
+
+outputs:
+- domain: stream
+  dtype: byte
+  vlen: 512
+
+file_format: 1
+
+documentation: |
+  Feature Quantization Block for Physical Layer Security
+  
+  This block quantizes continuous feature values to binary (0/1) values using
+  various thresholding methods. The binary output is used for key generation.
+  
+  Parameters:
+  - Quantization Method: Method for determining the threshold
+    * Mean Threshold: Uses the mean of features as threshold
+    * Median Threshold: Uses the median of features as threshold
+    * Zero Threshold: Uses 0 as threshold
+  
+  Input: Feature vector (512 float values)
+  Output: Binary array (512 byte values: 0 or 1)
+  
+  The quantization process converts continuous neural network features into
+  binary values that can be used for cryptographic key generation. The choice
+  of threshold method affects the balance of 0s and 1s in the output.

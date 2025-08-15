@@ -1,0 +1,164 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#
+# Copyright 2024 gr-PHYSEC author.
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+
+import numpy as np
+from gnuradio import gr
+import time
+import unireedsolomon as rs
+
+class parity_generation_block(gr.sync_block):
+    """
+    Parity generation block using Reed-Solomon coding.
+    
+    This block takes binary keys and generates parity bits for reconciliation,
+    matching the test_channel_fingerprinting_framework_onnx.py logic
+    """
+    
+    def __init__(self, n=256, k=128, key_length=512):
+        gr.sync_block.__init__(
+            self,
+            name="PHYSEC Parity Generation Block",
+            in_sig=[(np.uint8, key_length)],  # Binary key input
+            out_sig=[(np.uint8, n-k)]  # Parity bits output
+        )
+        
+        # Store parameters
+        self.n = n  # Total codeword length
+        self.k = k  # Message length
+        self.s = n - k  # Parity length
+        self.key_length = key_length
+        # Initialize Reed-Solomon coder
+        self.coder = rs.RSCoder(n, k)
+        
+        print(f"PHYSEC Parity Generation Block initialized:")
+        print(f"  RS Code: ({n}, {k}) - {self.s} parity symbols")
+        print(f"  Code Rate: {k/n:.3f}")
+        print(f"  Input Size: {self.key_length} (binary key)")
+        print(f"  Output Size: {self.s} (parity bits)")
+    
+    def arr2str(self, arr):
+        """
+        Convert binary array to string, matching the test file implementation.
+        """
+        str_arr = ''
+        for i in arr:
+            str_arr += str(i)
+        return str_arr
+    
+    def generate_parity(self, binary_key):
+        """
+        Generate parity bits for a binary key using Reed-Solomon coding.
+        
+        Args:
+            binary_key: Binary array (0s and 1s)
+            
+        Returns:
+            Parity bits array or None if error
+        """
+        try:            
+            # Convert binary array to hex string
+            # print(f"Binary key: {binary_key}")
+            # print(f"Binary key length: {len(binary_key)}")
+            # Convert to hex (this will be truncated to fit in k symbols)
+            # For RS(255, 128), we can handle up to 128 hex characters
+            # 512 bits = 64 hex characters, which fits within k=128
+            strKey = self.arr2str(binary_key)   
+            # print(f"String key: {strKey}")
+            # print(f"String key length: {len(strKey)}")
+            hex_str = hex(int(strKey, 2))
+            hex_str = str(hex_str[2:])  # Remove '0x' prefix
+            # print(f"Hex string: {hex_str}")
+            # print(f"Hex string length: {len(hex_str)}")
+            # Encode using Reed-Solomon
+            encoded = self.coder.encode(hex_str)
+            # print(f"Encoded: {encoded}")
+            # print(f"Encoded length: {len(encoded)}")
+            parity_bits = encoded[self.k:]  # Extract parity bits
+            # print(f"Parity bits: {parity_bits}")
+            # print(f"Parity bits length: {len(parity_bits)}")
+            
+            # Check the data type of the parity bits
+            # print(f"Parity bits data type: {type(parity_bits)}")
+            
+            # Convert parity hex string back to binary array
+            # parity_binary = []
+            # for hex_char in parity_bits:
+            #     # Convert each hex character to 4 binary bits
+            #     binary = format(int(hex_char, 16), '04b')
+            #     parity_binary.extend([int(bit) for bit in binary])
+            
+            # Ensure we have exactly s parity bits
+            # parity_array = np.array(parity_binary[:self.s], dtype=np.uint8)
+            
+            print(f"Generated parity: input_bits={len(binary_key)}, parity_bits={len(parity_bits)}")
+            print(f"  RS Code: ({self.n}, {self.k})")
+            
+            return parity_bits
+            
+        except Exception as e:
+            print(f"Error in parity generation: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+    
+    def work(self, input_items, output_items):
+        """
+        Main processing function called by GNU Radio.
+        
+        Args:
+            input_items: List of input arrays
+            output_items: List of output arrays
+            
+        Returns:
+            Number of items processed
+        """
+        try:
+            # Get input and output data
+            in0 = input_items[0]
+            out0 = output_items[0]
+            num_input_items = len(in0)
+            
+            print(f"Processing {num_input_items} binary key(s)")
+            
+            for i in range(num_input_items):
+                # Get the current binary key
+                binary_key = in0[i]
+                # Generate parity bits
+                parity_bits = self.generate_parity(binary_key)
+                
+                out0[i] = parity_bits
+                print(f"✓ Generated parity bits: {len(parity_bits)} bits")
+                
+            
+            return num_input_items
+            
+        except Exception as e:
+            print(f"Error in work method: {e}")
+            import traceback
+            traceback.print_exc()
+            return 0
+
+
+if __name__ == "__main__":
+    # Test the parity generation block
+    print("Testing parity generation block...")
+    
+    # Create test data (mock binary key)
+    test_binary_key = np.random.randint(0, 2, (512,), dtype=np.uint8)
+    
+    # Create block instance
+    block = parity_generation_block(n=255, k=128, key_length=512)
+    
+    # Test parity generation
+    parity_bits = block.generate_parity(test_binary_key)
+    if parity_bits is not None:
+        print(f"✓ Test successful! Parity bits shape: {parity_bits.shape}")
+        print(f"  Parity bits: {parity_bits[:10]}...")
+        print(f"  Binary distribution: {np.bincount(parity_bits)}")
+    else:
+        print("✗ Test failed!")

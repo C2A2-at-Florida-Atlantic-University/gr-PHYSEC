@@ -1,0 +1,87 @@
+id: PHYSEC_fingerprint_block
+label: PHYSEC Fingerprint Block
+flags: '[python]'
+category: '[PHYSEC]'
+
+templates:
+  imports: |
+    from gnuradio import PHYSEC
+  make: PHYSEC.fingerprint_block(${model_path}, ${model_type}, ${vector_size}, ${sample_rate}, ${center_freq}, ${key_length})
+  callbacks:
+    - set_model_path
+    - set_model_type
+    - set_vector_size
+    - set_sample_rate
+    - set_center_freq
+    - set_key_length
+
+parameters:
+- id: model_path
+  label: ONNX Model Path
+  dtype: string
+  default: "/path/to/QExtractor.onnx"
+
+- id: model_type
+  label: Model Type
+  dtype: string
+  default: "quadruplet"
+  options: [quadruplet, triplet]
+  option_labels: [QuadrupletNet, TripletNet]
+
+- id: vector_size
+  label: Vector Size
+  dtype: int
+  default: 2048
+
+- id: sample_rate
+  label: Sample Rate
+  dtype: float
+  default: 1000000.0
+
+- id: center_freq
+  label: Center Frequency
+  dtype: float
+  default: 2400000000.0
+
+- id: key_length
+  label: Key Length
+  dtype: int
+  default: 128
+
+inputs:
+- domain: stream
+  dtype: complex
+  vlen: '${vector_size}'
+
+outputs: []
+
+file_format: 1
+
+documentation: |
+  Channel Fingerprinting Block for Physical Layer Security
+  
+  This block takes IQ samples from an SDR and performs channel fingerprinting
+  using a trained deep learning model (ONNX format). The process includes:
+  
+  1. Creating spectrograms from IQ samples
+  2. Feature extraction using the trained ONNX model
+  3. Feature quantization to binary values
+  4. Privacy amplification using SHA3-512
+  
+  The block outputs three message ports:
+  - fingerprint_out: The generated cryptographic fingerprint
+  - features_out: The quantized features for debugging
+  - spectrogram_out: The spectrogram data for debugging
+  
+  Parameters:
+  - ONNX Model Path: Path to the trained QExtractor.onnx model
+  - Model Type: Choose between quadruplet or triplet network
+  - Spectrogram Size: FFT size for spectrogram creation
+  - Sample Rate: SDR sample rate in Hz
+  - Center Frequency: SDR center frequency in Hz
+  - Key Length: Desired key length in bits
+  
+  Input: Complex IQ samples from SDR
+  Output: Message ports with fingerprint and debug information
+  
+  Note: This block now uses ONNX models for better compatibility and performance.

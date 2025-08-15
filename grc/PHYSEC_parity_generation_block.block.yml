@@ -1,0 +1,56 @@
+id: PHYSEC_parity_generation_block
+label: PHYSEC Parity Generation Block
+flags: '[python]'
+category: '[PHYSEC]'
+
+templates:
+  imports: |
+    from gnuradio import PHYSEC
+  make: PHYSEC.parity_generation_block(${n}, ${k}, ${key_length})
+
+parameters:
+- id: n
+  label: Total Codeword Length
+  dtype: int
+  default: 255
+
+- id: k
+  label: Message Length
+  dtype: int
+  default: 128
+
+- id: key_length
+  label: Key Length
+  dtype: int
+  default: 512
+
+inputs:
+- domain: stream
+  dtype: byte
+  vlen: '${key_length}'
+
+outputs:
+- domain: stream
+  dtype: byte
+  vlen: '${n - k}'
+
+file_format: 1
+
+documentation: |
+  Parity Generation Block for Physical Layer Security
+  
+  This block generates Reed-Solomon parity bits for error correction during
+  key reconciliation. The parity bits enable two parties to correct bit
+  errors in their generated keys.
+  
+  Parameters:
+  - Total Codeword Length (n): Total length of the Reed-Solomon code
+  - Message Length (k): Length of the original message
+  - Key Length: Length of the input binary key
+  
+  Input: Binary key (key_length byte values: 0 or 1)
+  Output: Parity bits ((n-k) byte values)
+  
+  The block uses Reed-Solomon coding to generate parity bits that can
+  correct up to (n-k)/2 symbol errors. This is crucial for successful
+  key reconciliation between Alice and Bob in the presence of noise.

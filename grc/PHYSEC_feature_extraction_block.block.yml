@@ -1,0 +1,43 @@
+id: PHYSEC_feature_extraction_block
+label: PHYSEC Feature Extraction Block
+flags: '[python]'
+category: '[PHYSEC]'
+
+templates:
+  imports: |
+    from gnuradio import PHYSEC
+  make: PHYSEC.feature_extraction_block(${model_path})
+
+parameters:
+- id: model_path
+  label: ONNX Model Path
+  dtype: string
+  default: "/path/to/model.onnx"
+
+inputs:
+- domain: stream
+  dtype: float
+  vlen: 6324
+
+outputs:
+- domain: stream
+  dtype: float
+  vlen: 512
+
+file_format: 1
+
+documentation: |
+  Feature Extraction Block for Physical Layer Security
+  
+  This block extracts features from spectrograms using a trained ONNX neural network model.
+  The features are used for subsequent quantization and key generation.
+  
+  Parameters:
+  - ONNX Model Path: Path to the trained model.onnx model
+  
+  Input: spectrogram data ((204,31) float values)
+  Output: Feature vector (512 float values)
+  
+  The block loads the ONNX model and performs inference to extract meaningful
+  features from the input spectrograms. These features represent the learned
+  representations of the channel characteristics.
