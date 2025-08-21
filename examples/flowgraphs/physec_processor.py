@@ -16,7 +16,7 @@ class PhysecProcessor(gr.top_block):
     GNU Radio flowgraph for PHYSEC signal processing pipeline
     """
     
-    def __init__(self, samples, fft_window=512, vector_size=8192):
+    def __init__(self, samples, fft_window=512, vector_size=8192, model_path="QExtractor.onnx"):
         """
         Initialize PHYSEC processor flowgraph
         
@@ -31,6 +31,7 @@ class PhysecProcessor(gr.top_block):
         self.fft_window = fft_window
         self.vector_size = vector_size
         self.samples = samples
+        self.model_path = model_path
         
         # Create temporary output file for quantized features
         self.temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.bin')
@@ -65,7 +66,7 @@ class PhysecProcessor(gr.top_block):
         
         # PHYSEC Feature Extraction Block
         self.feature_extraction_block = PHYSEC.feature_extraction_block(
-            '/workspace/data/gr-PHYSEC/models/QExtractor.onnx'
+            self.model_path
         )
         
         # PHYSEC Quantization Block

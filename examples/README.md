@@ -27,14 +27,19 @@ python3 control_layer.py --node bob
 python3 control_layer.py --node alice
 ```
 
-### Network Deployment
+### Network Deployment (Multi-Computer)
 ```bash
-# On Bob's machine
+# On Bob's machine (with PlutoSDR #2)
 python3 control_layer.py --node bob --peer-host alice_ip_address
 
-# On Alice's machine
+# On Alice's machine (with PlutoSDR #1)
 python3 control_layer.py --node alice --peer-host bob_ip_address
+
+# On visualization machine
+python3 network_demo.py --alice-host alice_ip --bob-host bob_ip
 ```
+
+📖 **For detailed distributed setup:** See [NETWORK_DEPLOYMENT.md](NETWORK_DEPLOYMENT.md)
 
 ## 📁 Files
 
@@ -42,6 +47,7 @@ python3 control_layer.py --node alice --peer-host bob_ip_address
 - **`control_layer.py`** - Main PHYSEC protocol implementation
 - **`demo_control_layer.py`** - Interactive demonstration with dynamic visualization
 - **`dynamic_visualization.py`** - Real-time dashboard for protocol monitoring
+- **`network_demo.py`** - Network monitoring for distributed deployment
 
 ### Modular Flowgraphs
 - **`flowgraphs/`** - Modular GNU Radio implementations
