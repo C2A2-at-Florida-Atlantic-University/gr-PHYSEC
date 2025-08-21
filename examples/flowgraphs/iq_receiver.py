@@ -15,15 +15,13 @@ import time
 import logging
 import numpy as np
 
-# Import IIO utilities
+# Import GNU Radio IIO
 try:
-    import sys
-    sys.path.append('/workspace/siwn/siwn-node/network')
-    from iio_utils import create_modern_source, set_source_parameters
+    from gnuradio import iio
     IIO_AVAILABLE = True
 except ImportError as e:
     IIO_AVAILABLE = False
-    print(f"Warning: IIO utilities not available ({e})")
+    print(f"Warning: GNU Radio IIO not available ({e})")
 
 logger = logging.getLogger(__name__)
 
@@ -63,9 +61,13 @@ class IQReceiver(gr.top_block):
         # PlutoSDR source (if available)
         if IIO_AVAILABLE:
             try:
-                self.pluto_source = create_modern_source(self.sdr_uri, 32768)
-                set_source_parameters(self.pluto_source, self.center_freq, self.sample_rate, self.gain)
+                self.pluto_source = iio.fmcomms2_source_fc32(self.sdr_uri, [True, True], 32768)
+                self.pluto_source.set_frequency(int(self.center_freq))
+                self.pluto_source.set_samplerate(int(self.sample_rate))
+                self.pluto_source.set_gain_mode(0, 'slow_attack')
+                self.pluto_source.set_gain(0, float(self.gain))
                 self.source_available = True
+                logger.info("Connected to PlutoSDR source")
             except Exception as e:
                 logger.warning(f"Could not create PlutoSDR source: {e}")
                 self.source_available = False

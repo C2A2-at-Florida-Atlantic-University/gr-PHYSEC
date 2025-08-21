@@ -64,9 +64,9 @@ python3 network_demo.py --alice-host alice_ip --bob-host bob_ip
 
 ## 🔧 Requirements
 
-- GNU Radio 3.10+
+- GNU Radio 3.10+ with IIO support
 - gr-PHYSEC library  
-- PlutoSDR with modern IIO support
+- PlutoSDR hardware (optional - falls back to test signals)
 - Python 3.6+
 - matplotlib, numpy
 

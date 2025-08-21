@@ -14,15 +14,13 @@ import threading
 import time
 import logging
 
-# Import IIO utilities
+# Import GNU Radio IIO
 try:
-    import sys
-    sys.path.append('/workspace/siwn/siwn-node/network')
-    from iio_utils import create_modern_sink, set_sink_parameters
+    from gnuradio import iio
     IIO_AVAILABLE = True
 except ImportError as e:
     IIO_AVAILABLE = False
-    print(f"Warning: IIO utilities not available ({e})")
+    print(f"Warning: GNU Radio IIO not available ({e})")
 
 logger = logging.getLogger(__name__)
 
@@ -82,9 +80,12 @@ class SinusoidalProbe(gr.top_block):
         # PlutoSDR sink (if available)
         if IIO_AVAILABLE:
             try:
-                self.pluto_sink = create_modern_sink(self.sdr_uri, 32768)
-                set_sink_parameters(self.pluto_sink, self.center_freq, self.sample_rate, self.gain)
+                self.pluto_sink = iio.fmcomms2_sink_fc32(self.sdr_uri, [True, True], 32768, False)
+                self.pluto_sink.set_frequency(int(self.center_freq))
+                self.pluto_sink.set_samplerate(int(self.sample_rate))
+                self.pluto_sink.set_attenuation(0, float(self.gain))
                 self.sink_available = True
+                logger.info("Connected to PlutoSDR sink")
             except Exception as e:
                 logger.warning(f"Could not create PlutoSDR sink: {e}")
                 self.sink_available = False
