@@ -16,7 +16,7 @@ class reconciliation_block(gr.sync_block):
     Reconciliation block using Reed-Solomon coding.
     
     This block takes a binary key and parity bits as input and attempts to
-    perform reconciliation, outputting the reconciled key.
+    perform reconciliation, outputting the reconciled key and success status.
     """
     
     def __init__(self, n=255, k=128, key_length=512):
@@ -24,7 +24,7 @@ class reconciliation_block(gr.sync_block):
             self,
             name="PHYSEC Reconciliation Block",
             in_sig=[(np.uint8, key_length), (np.uint8, n-k)],  # Binary key + parity bits input
-            out_sig=[(np.uint8, k)]  # Reconciled key output
+            out_sig=[(np.uint8, k), np.uint8]  # Reconciled key output + success flag
         )
         
         # Store parameters
@@ -40,7 +40,8 @@ class reconciliation_block(gr.sync_block):
         print(f"  Code Rate: {k/n:.3f}")
         print(f"  Input 1 Size: {self.key_length} (binary key)")
         print(f"  Input 2 Size: {self.s} (parity bits)")
-        print(f"  Output Size: {self.key_length} (reconciled key)")
+        print(f"  Output 1 Size: {self.k} (reconciled key)")
+        print(f"  Output 2 Size: 1 (success flag)")
     
     def arr2str(self, arr):
         """
@@ -60,7 +61,9 @@ class reconciliation_block(gr.sync_block):
             parity_bits: Parity bits array for reconciliation
             
         Returns:
-            Reconciled binary key array or None if error
+            Tuple: (reconciled_key, success_flag)
+                - reconciled_key: Reconciled key if successful, original key if failed
+                - success_flag: True if reconciliation succeeded, False otherwise
         """
         try:
             
@@ -84,20 +87,21 @@ class reconciliation_block(gr.sync_block):
                 reconciled_binary = np.array([ord(char) for char in reconciled_hex], dtype=np.uint8)
                 
                 print(f"RS decoding successful: {len(combined_data)} -> {len(decoded[0])} hex chars")
-                
-                print(f"Reconciliation successful: input_bits={len(binary_key)}, output_bits={len(reconciled_hex)}")
-                return reconciled_binary
+                print(f"Reconciliation successful: input_bits={len(binary_key)}, output_bits={len(reconciled_binary)}")
+                return reconciled_binary, True
                 
             except Exception as decode_error:
                 print(f"Reconciliation failed: {decode_error}")
                 # Return original key if reconciliation fails
-                return binary_key
+                failed_key = np.array([ord(char) for char in hex_str], dtype=np.uint8)
+                return failed_key, False
             
         except Exception as e:
             print(f"Error in reconciliation: {e}")
             import traceback
             traceback.print_exc()
-            return None
+            failed_key = np.array([ord(char) for char in hex_str], dtype=np.uint8)
+            return failed_key, False
     
     def work(self, input_items, output_items):
         """
@@ -115,6 +119,7 @@ class reconciliation_block(gr.sync_block):
             in0 = input_items[0]  # Binary key
             in1 = input_items[1]  # Parity bits
             out0 = output_items[0]  # Reconciled key
+            out1 = output_items[1]  # Success flag
             
             num_input_items = len(in0)
             
@@ -126,10 +131,11 @@ class reconciliation_block(gr.sync_block):
                 parity_bits = in1[i]
                 
                 # Perform reconciliation
-                reconciled_key = self.reconcile(binary_key, parity_bits)
+                reconciled_key, success = self.reconcile(binary_key, parity_bits)
 
                 out0[i] = reconciled_key
-                print(f"✓ Reconciliation completed: {len(reconciled_key)} bits")
+                out1[i] = 1 if success else 0  # Convert boolean to uint8
+                print(f"✓ Reconciliation completed: {len(reconciled_key)} bits, success: {success}")
                 
             return num_input_items
             
@@ -152,9 +158,10 @@ if __name__ == "__main__":
     block = reconciliation_block(n=255, k=128)
     
     # Test reconciliation
-    reconciled_key = block.reconcile(test_binary_key, test_parity_bits)
-    if reconciled_key is not None:
-        print(f"✓ Test successful! Reconciled key shape: {reconciled_key.shape}")
+    reconciled_key, success = block.reconcile(test_binary_key, test_parity_bits)
+    if success:
+        print(f"✓ Test successful! Reconciliation succeeded.")
+        print(f"  Reconciled key shape: {reconciled_key.shape}")
         print(f"  Original key: {test_binary_key[:10]}...")
         print(f"  Reconciled key: {reconciled_key[:10]}...")
         
@@ -162,4 +169,7 @@ if __name__ == "__main__":
         bit_changes = np.sum(test_binary_key != reconciled_key)
         print(f"  Bits changed: {bit_changes}")
     else:
-        print("✗ Test failed!")
+        print("⚠ Test returned failure flag, but key was returned anyway")
+        print(f"  Returned key shape: {reconciled_key.shape}")
+        print(f"  Original key: {test_binary_key[:10]}...")
+        print(f"  Returned key: {reconciled_key[:10]}...")

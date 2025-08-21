@@ -27,6 +27,7 @@ from gnuradio import qtgui
 from gnuradio.filter import firdes
 import sip
 from gnuradio import PHYSEC
+from gnuradio import analog
 from gnuradio import blocks
 from gnuradio import gr
 from gnuradio.fft import window
@@ -138,12 +139,20 @@ class decoupled_physic_example(gr.top_block, Qt.QWidget):
         self.iio_pluto_source_0.set_rfdc(True)
         self.iio_pluto_source_0.set_bbdc(True)
         self.iio_pluto_source_0.set_filter_params('Auto', '', 0, 0)
+        self.iio_pluto_sink_0 = iio.fmcomms2_sink_fc32("ip:192.168.65.254" if "ip:192.168.65.254" else iio.get_pluto_uri(), [True, True], 32768, False)
+        self.iio_pluto_sink_0.set_len_tag_key('')
+        self.iio_pluto_sink_0.set_bandwidth(20000000)
+        self.iio_pluto_sink_0.set_frequency(2400000000)
+        self.iio_pluto_sink_0.set_samplerate(sampleRate)
+        self.iio_pluto_sink_0.set_attenuation(0, 10.0)
+        self.iio_pluto_sink_0.set_filter_params('Auto', '', 0, 0)
         self.blocks_throttle_0 = blocks.throttle(gr.sizeof_gr_complex*1, sampleRate,True)
         self.blocks_stream_to_vector_0 = blocks.stream_to_vector(gr.sizeof_gr_complex*1, vectorSize)
         self.blocks_file_sink_0_0 = blocks.file_sink(gr.sizeof_char*128, '/tmp/keys.txt', False)
         self.blocks_file_sink_0_0.set_unbuffered(False)
         self.blocks_file_sink_0 = blocks.file_sink(gr.sizeof_char*512, '/tmp/physic_quantized_features.txt', False)
         self.blocks_file_sink_0.set_unbuffered(False)
+        self.analog_sig_source_x_0 = analog.sig_source_c(sampleRate, analog.GR_SIN_WAVE, 1000, 1, 0, 0)
         self.PHYSEC_spectrogram_block_0 = PHYSEC.spectrogram_block(fftWindow, vectorSize)
         self.PHYSEC_reconciliation_block_0 = PHYSEC.reconciliation_block(255, 128, 512)
         self.PHYSEC_privacy_amplification_block_0 = PHYSEC.privacy_amplification_block('sha3_512')
@@ -163,6 +172,7 @@ class decoupled_physic_example(gr.top_block, Qt.QWidget):
         self.connect((self.PHYSEC_privacy_amplification_block_0, 0), (self.blocks_file_sink_0_0, 0))
         self.connect((self.PHYSEC_reconciliation_block_0, 0), (self.PHYSEC_privacy_amplification_block_0, 0))
         self.connect((self.PHYSEC_spectrogram_block_0, 0), (self.PHYSEC_feature_extraction_block_0, 0))
+        self.connect((self.analog_sig_source_x_0, 0), (self.iio_pluto_sink_0, 0))
         self.connect((self.blocks_stream_to_vector_0, 0), (self.PHYSEC_spectrogram_block_0, 0))
         self.connect((self.blocks_throttle_0, 0), (self.blocks_stream_to_vector_0, 0))
         self.connect((self.iio_pluto_source_0, 0), (self.blocks_throttle_0, 0))
@@ -188,7 +198,9 @@ class decoupled_physic_example(gr.top_block, Qt.QWidget):
 
     def set_sampleRate(self, sampleRate):
         self.sampleRate = sampleRate
+        self.analog_sig_source_x_0.set_sampling_freq(self.sampleRate)
         self.blocks_throttle_0.set_sample_rate(self.sampleRate)
+        self.iio_pluto_sink_0.set_samplerate(self.sampleRate)
         self.iio_pluto_source_0.set_samplerate(self.sampleRate)
         self.qtgui_freq_sink_x_0.set_frequency_range(0, self.sampleRate)
 
