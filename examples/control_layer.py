@@ -197,13 +197,15 @@ class PhysecNode:
                     time.sleep(1)  # Avoid tight loop on errors
     
     def handle_monitor_request(self, client_socket):
-        """Handle monitoring status requests"""
+        """Handle monitoring status requests and data requests"""
         try:
             data = client_socket.recv(1024)
             if data:
                 try:
                     request = json.loads(data.decode('utf-8').strip())
-                    if request.get('type') == 'status_request':
+                    request_type = request.get('type')
+                    
+                    if request_type == 'status_request':
                         # Send comprehensive status response with detailed protocol state
                         # Determine the actual protocol step based on current state and activities
                         protocol_step = self._get_protocol_step()
@@ -223,6 +225,43 @@ class PhysecNode:
                         }
                         client_socket.send(json.dumps(response).encode('utf-8') + b'\n')
                         logger.info(f"{self.node_name} sent status response to monitor")
+                    
+                    elif request_type == 'iq_samples_request':
+                        # Send IQ samples data
+                        if self.iq_samples is not None:
+                            response = {
+                                "type": "iq_samples_response",
+                                "iq_samples": str(self.iq_samples.tolist()),  # Convert numpy array to string representation
+                                "timestamp": time.time()
+                            }
+                            client_socket.send(json.dumps(response).encode('utf-8') + b'\n')
+                            logger.info(f"{self.node_name} sent IQ samples data to monitor")
+                        else:
+                            response = {
+                                "type": "iq_samples_response",
+                                "error": "No IQ samples available",
+                                "timestamp": time.time()
+                            }
+                            client_socket.send(json.dumps(response).encode('utf-8') + b'\n')
+                    
+                    elif request_type == 'spectrogram_request':
+                        # Send spectrogram data
+                        if self.spectrogram_data is not None:
+                            response = {
+                                "type": "spectrogram_response",
+                                "spectrogram_data": str(self.spectrogram_data.tolist()),  # Convert numpy array to string representation
+                                "timestamp": time.time()
+                            }
+                            client_socket.send(json.dumps(response).encode('utf-8') + b'\n')
+                            logger.info(f"{self.node_name} sent spectrogram data to monitor")
+                        else:
+                            response = {
+                                "type": "spectrogram_response",
+                                "error": "No spectrogram data available",
+                                "timestamp": time.time()
+                            }
+                            client_socket.send(json.dumps(response).encode('utf-8') + b'\n')
+                    
                 except json.JSONDecodeError:
                     pass
         except Exception as e:
