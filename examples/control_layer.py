@@ -763,6 +763,9 @@ class Bob(PhysecNode):
     def __init__(self, listen_port=8002, peer_host='localhost', peer_port=8001):
         super().__init__("Bob", listen_port, peer_host, peer_port)
         self.state = "idle"
+        self.run_count = 0
+        self.successful_runs = 0
+        self.failed_runs = 0
 
     def process_message(self, message):
         """Process messages specific to Bob"""
@@ -770,7 +773,8 @@ class Bob(PhysecNode):
         
         if msg_type == "key_generation_request" and self.state == "idle":
             # Step 2: Accept request and start transmitting probe
-            logger.info("Bob received key generation request")
+            self.run_count += 1
+            logger.info(f"Bob received key generation request for run #{self.run_count}")
             self.state = "accepted"
             
             # Notify Alice that transmission will start
@@ -875,6 +879,14 @@ class Bob(PhysecNode):
             run_number = message.get("run_number", 0)
             logger.info(f"Bob received run completion notification for run #{run_number}")
             
+            # Track run statistics
+            if self.state == "key_ready":
+                self.successful_runs += 1
+                logger.info(f"✅ Bob run #{run_number} completed successfully")
+            else:
+                self.failed_runs += 1
+                logger.info(f"❌ Bob run #{run_number} failed")
+            
             # Send acknowledgment back to Alice
             response = {
                 "type": "run_ack",
@@ -882,6 +894,10 @@ class Bob(PhysecNode):
                 "timestamp": time.time()
             }
             self.send_message(response)
+            
+            # Reset for next run
+            logger.info(f"🔄 Bob preparing for next run...")
+            self.reset_for_new_run()
 
     def send_encrypted_message(self, plaintext):
         """Send encrypted message to Alice"""
@@ -906,6 +922,10 @@ def main():
                        help='Node type to run')
     parser.add_argument('--peer-host', default='localhost',
                        help='Peer node hostname')
+    parser.add_argument('--runs', type=int, default=1,
+                       help='Number of protocol runs to execute (default: 1)')
+    parser.add_argument('--delay', type=float, default=2.0,
+                       help='Delay between runs in seconds (default: 2.0)')
     
     args = parser.parse_args()
     
@@ -921,35 +941,113 @@ def main():
             # Wait a bit for server to start
             time.sleep(1)
             
-            # Start key generation process
-            node.start_key_generation()
+            # Execute multiple runs
+            successful_runs = 0
+            failed_runs = 0
             
-            # Keep Alice alive to receive responses
-            logger.info("Alice waiting for protocol completion...")
-            try:
-                while node.running and node.state not in ["key_ready", "error", "reconciliation_failed"]:
-                    time.sleep(0.5)
+            logger.info(f"🚀 Alice starting {args.runs} protocol run(s)...")
+            
+            for run_num in range(1, args.runs + 1):
+                logger.info(f"\n🔄 Starting run #{run_num}/{args.runs}")
+                logger.info("=" * 50)
                 
-                if node.state == "key_ready":
-                    logger.info("✅ Alice key generation completed successfully!")
-                    if hasattr(node, 'key') and node.key:
-                        logger.info(f"✅ Alice generated {len(node.key)} byte key")
-                elif node.state == "error":
-                    logger.error("❌ Alice key generation failed with error")
-                elif node.state == "reconciliation_failed":
-                    logger.error("❌ Alice key generation failed during reconciliation")
-                else:
-                    logger.warning("⚠️  Alice key generation incomplete")
+                try:
+                    # Reset node state for new run
+                    node.reset_for_new_run()
                     
-            except KeyboardInterrupt:
-                logger.info("Alice interrupted by user")
-                node.running = False
+                    # Start key generation process
+                    node.start_key_generation()
+                    
+                    # Wait for protocol completion
+                    logger.info(f"⏳ Alice waiting for run #{run_num} completion...")
+                    start_time = time.time()
+                    
+                    while node.running and node.state not in ["key_ready", "error", "reconciliation_failed"]:
+                        time.sleep(0.5)
+                    
+                    duration = time.time() - start_time
+                    
+                    # Check run result
+                    if node.state == "key_ready":
+                        successful_runs += 1
+                        logger.info(f"✅ Run #{run_num} completed successfully in {duration:.2f}s!")
+                        if hasattr(node, 'key') and node.key:
+                            logger.info(f"✅ Generated {len(node.key)} byte key")
+                    elif node.state == "error":
+                        failed_runs += 1
+                        logger.error(f"❌ Run #{run_num} failed with error")
+                    elif node.state == "reconciliation_failed":
+                        failed_runs += 1
+                        logger.error(f"❌ Run #{run_num} failed during reconciliation")
+                    else:
+                        failed_runs += 1
+                        logger.warning(f"⚠️  Run #{run_num} incomplete")
+                    
+                    # Send run completion notification to Bob
+                    if run_num < args.runs:  # Don't send for last run
+                        completion_msg = {
+                            "type": "run_complete",
+                            "run_number": run_num,
+                            "timestamp": time.time()
+                        }
+                        try:
+                            node.send_message(completion_msg)
+                            logger.info(f"📤 Sent run #{run_num} completion notification to Bob")
+                        except Exception as e:
+                            logger.warning(f"⚠️  Could not notify Bob of run completion: {e}")
+                    
+                    # Wait between runs (except after last run)
+                    if run_num < args.runs:
+                        logger.info(f"⏳ Waiting {args.delay}s before next run...")
+                        time.sleep(args.delay)
+                        
+                except KeyboardInterrupt:
+                    logger.info(f"🛑 Run #{run_num} interrupted by user")
+                    break
+                except Exception as e:
+                    failed_runs += 1
+                    logger.error(f"❌ Run #{run_num} failed with exception: {e}")
+                    if run_num < args.runs:
+                        logger.info(f"⏳ Waiting {args.delay}s before next run...")
+                        time.sleep(args.delay)
+            
+            # Final summary
+            logger.info("\n" + "=" * 60)
+            logger.info(f"📊 MULTI-RUN SUMMARY")
+            logger.info("=" * 60)
+            logger.info(f"   Total Runs: {args.runs}")
+            logger.info(f"   Successful: {successful_runs}")
+            logger.info(f"   Failed: {failed_runs}")
+            logger.info(f"   Success Rate: {(successful_runs/args.runs)*100:.1f}%")
+            
+            if successful_runs > 0:
+                logger.info(f"✅ {successful_runs} successful key generation(s) completed!")
+            else:
+                logger.error(f"❌ All {args.runs} runs failed")
+            
+            logger.info("=" * 60)
             
         elif args.node == 'bob':
             node = Bob(peer_host=args.peer_host)
             
             # Start server and wait for connections
-            node.start_server()
+            logger.info(f"🚀 Bob starting server for {args.runs} protocol run(s)...")
+            
+            try:
+                node.start_server()
+            except KeyboardInterrupt:
+                logger.info("\n🛑 Bob server interrupted by user")
+            finally:
+                # Show Bob's run statistics
+                logger.info("\n" + "=" * 60)
+                logger.info(f"📊 BOB MULTI-RUN SUMMARY")
+                logger.info("=" * 60)
+                logger.info(f"   Total Runs Handled: {node.run_count}")
+                logger.info(f"   Successful: {node.successful_runs}")
+                logger.info(f"   Failed: {node.failed_runs}")
+                if node.run_count > 0:
+                    logger.info(f"   Success Rate: {(node.successful_runs/node.run_count)*100:.1f}%")
+                logger.info("=" * 60)
             
     except KeyboardInterrupt:
         logger.info("Shutting down...")
