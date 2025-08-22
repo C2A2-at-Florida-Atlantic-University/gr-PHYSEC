@@ -36,6 +36,8 @@ class PHYSECProtocolMonitor:
         # Protocol state tracking
         self.alice_state = "unknown"
         self.bob_state = "unknown"
+        self.alice_protocol_step = "Idle"
+        self.bob_protocol_step = "Idle"
         self.current_run = 0
         self.alice_run_state = "idle"
         self.bob_run_state = "idle"
@@ -112,10 +114,19 @@ class PHYSECProtocolMonitor:
                 old_state = self.alice_state
                 self.alice_state = response.get("state", "unknown")
                 
+                # Extract protocol step information
+                old_protocol_step = self.alice_protocol_step
+                self.alice_protocol_step = response.get("protocol_step", "Idle")
+                
                 if self.alice_state != old_state:
                     print(f"🔄 Alice state changed: {old_state} → {self.alice_state}")
                     if self.visualizer:
-                        self.visualizer.update_step("Alice", self.alice_state)
+                        self.visualizer.update_step("Alice", self.alice_protocol_step)
+                
+                if self.alice_protocol_step != old_protocol_step:
+                    print(f"🔄 Alice protocol step: {old_protocol_step} → {self.alice_protocol_step}")
+                    if self.visualizer:
+                        self.visualizer.update_step("Alice", self.alice_protocol_step)
                 
                 # Extract run information if available
                 if "run_number" in response:
@@ -136,10 +147,19 @@ class PHYSECProtocolMonitor:
                 old_state = self.bob_state
                 self.bob_state = response.get("state", "unknown")
                 
+                # Extract protocol step information
+                old_protocol_step = self.bob_protocol_step
+                self.bob_protocol_step = response.get("protocol_step", "Idle")
+                
                 if self.bob_state != old_state:
                     print(f"🔄 Bob state changed: {old_state} → {self.bob_state}")
                     if self.visualizer:
-                        self.visualizer.update_step("Bob", self.bob_state)
+                        self.visualizer.update_step("Bob", self.bob_protocol_step)
+                
+                if self.bob_protocol_step != old_protocol_step:
+                    print(f"🔄 Bob protocol step: {old_protocol_step} → {self.bob_protocol_step}")
+                    if self.visualizer:
+                        self.visualizer.update_step("Bob", self.bob_protocol_step)
                 
                 # Extract run information if available
                 if "run_number" in response:
@@ -167,6 +187,8 @@ class PHYSECProtocolMonitor:
         # Protocol execution
         print(f"\n🚀 Protocol Execution:")
         print(f"   Current Run: {self.current_run}")
+        print(f"   Alice Protocol Step: {self.alice_protocol_step}")
+        print(f"   Bob Protocol Step: {self.bob_protocol_step}")
         print(f"   Alice Run State: {self.alice_run_state}")
         print(f"   Bob Run State: {self.bob_run_state}")
         

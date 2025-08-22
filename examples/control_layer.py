@@ -204,11 +204,15 @@ class PhysecNode:
                 try:
                     request = json.loads(data.decode('utf-8').strip())
                     if request.get('type') == 'status_request':
-                        # Send comprehensive status response
+                        # Send comprehensive status response with detailed protocol state
+                        # Determine the actual protocol step based on current state and activities
+                        protocol_step = self._get_protocol_step()
+                        
                         response = {
                             "type": "status_response",
                             "node_name": self.node_name,
                             "state": self.state,
+                            "protocol_step": protocol_step,
                             "run_number": self.run_count,
                             "run_state": self.state,
                             "transmitting": self.transmitting,
@@ -228,6 +232,43 @@ class PhysecNode:
                 client_socket.close()
             except:
                 pass
+    
+    def _get_protocol_step(self):
+        """Determine the current protocol step based on state and activities"""
+        if self.state == "idle":
+            return "Idle"
+        elif self.state == "requesting":
+            return "Key Request"
+        elif self.state == "transmitting":
+            return "Probe TX"
+        elif self.state == "collecting":
+            return "Collection"
+        elif self.state == "processing":
+            return "Processing"
+        elif self.state == "generating":
+            return "Generation"
+        elif self.state == "reconciling":
+            return "Reconciliation"
+        elif self.state == "amplifying":
+            return "Amplification"
+        elif self.state == "key_ready":
+            return "Key Exchange"
+        elif self.state == "error":
+            return "Error"
+        elif self.state == "reconciliation_failed":
+            return "Reconciliation Failed"
+        else:
+            # Try to infer from activities
+            if self.transmitting:
+                return "Probe TX"
+            elif self.iq_samples is not None and self.spectrogram_data is None:
+                return "Collection"
+            elif self.spectrogram_data is not None and self.key is None:
+                return "Processing"
+            elif self.key is not None:
+                return "Key Ready"
+            else:
+                return "Unknown"
 
     def handle_client(self, client_socket):
         """Handle incoming client messages"""
