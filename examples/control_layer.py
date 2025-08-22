@@ -84,6 +84,11 @@ class PhysecNode:
         if DYNAMIC_VIZ_AVAILABLE:
             self.visualizer = get_visualizer()
         
+        # Monitoring support - separate port for status requests
+        self.monitor_port = self.listen_port + 1000
+        self.monitor_socket = None
+        self.monitor_thread = None
+        
         # Pre-initialize flowgraphs for reuse
         self._initialize_flowgraphs()
         
@@ -136,6 +141,9 @@ class PhysecNode:
         self.server_socket.listen(1)
         logger.info(f"{self.node_name} server listening on port {self.listen_port}")
         
+        # Start monitoring server on separate port
+        self.start_monitoring_server(ip)
+        
         self.running = True
         while self.running:
             try:
@@ -145,6 +153,66 @@ class PhysecNode:
             except Exception as e:
                 if self.running:
                     logger.error(f"Server error: {e}")
+    
+    def start_monitoring_server(self, ip="0.0.0.0"):
+        """Start monitoring server on separate port for status requests"""
+        try:
+            self.monitor_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.monitor_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self.monitor_socket.bind((ip, self.monitor_port))
+            self.monitor_socket.listen(5)  # Allow multiple monitor connections
+            logger.info(f"{self.node_name} monitoring server listening on port {self.monitor_port}")
+            
+            self.monitor_thread = threading.Thread(target=self._monitor_server_loop, daemon=True)
+            self.monitor_thread.start()
+            
+        except Exception as e:
+            logger.error(f"{self.node_name} failed to start monitoring server: {e}")
+    
+    def _monitor_server_loop(self):
+        """Monitor server loop for handling status requests"""
+        while self.running:
+            try:
+                client_socket, addr = self.monitor_socket.accept()
+                logger.info(f"{self.node_name} monitoring connection from {addr}")
+                threading.Thread(target=self.handle_monitor_request, args=(client_socket,)).start()
+            except Exception as e:
+                if self.running:
+                    logger.error(f"{self.node_name} monitor server error: {e}")
+                    time.sleep(1)  # Avoid tight loop on errors
+    
+    def handle_monitor_request(self, client_socket):
+        """Handle monitoring status requests"""
+        try:
+            data = client_socket.recv(1024)
+            if data:
+                try:
+                    request = json.loads(data.decode('utf-8').strip())
+                    if request.get('type') == 'status_request':
+                        # Send comprehensive status response
+                        response = {
+                            "type": "status_response",
+                            "node_name": self.node_name,
+                            "state": self.state,
+                            "run_number": self.run_count,
+                            "run_state": self.state,
+                            "transmitting": self.transmitting,
+                            "iq_samples_available": self.iq_samples is not None,
+                            "spectrogram_available": self.spectrogram_data is not None,
+                            "key_available": self.key is not None,
+                            "timestamp": time.time()
+                        }
+                        client_socket.send(json.dumps(response).encode('utf-8') + b'\n')
+                        logger.info(f"{self.node_name} sent status response to monitor")
+                except json.JSONDecodeError:
+                    pass
+        except Exception as e:
+            logger.error(f"{self.node_name} monitor request handler error: {e}")
+        finally:
+            try:
+                client_socket.close()
+            except:
+                pass
 
     def handle_client(self, client_socket):
         """Handle incoming client messages"""

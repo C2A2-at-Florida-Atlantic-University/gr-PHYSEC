@@ -30,8 +30,8 @@ class PHYSECProtocolMonitor:
     def __init__(self, alice_ip, bob_ip, alice_port=8001, bob_port=8002):
         self.alice_ip = alice_ip
         self.bob_ip = bob_ip
-        self.alice_port = alice_port
-        self.bob_port = bob_port
+        self.alice_port = alice_port + 1000  # Use monitoring ports
+        self.bob_port = bob_port + 1000      # Use monitoring ports
         
         # Protocol state tracking
         self.alice_state = "unknown"
@@ -162,6 +162,7 @@ class PHYSECProtocolMonitor:
         print(f"\n📱 Node States:")
         print(f"   Alice ({self.alice_ip}:{self.alice_port}): {self.alice_state}")
         print(f"   Bob   ({self.bob_ip}:{self.bob_port}): {self.bob_state}")
+        print(f"   💡 Monitoring via dedicated ports (main protocol: {self.alice_port-1000}, {self.bob_port-1000})")
         
         # Protocol execution
         print(f"\n🚀 Protocol Execution:")
@@ -202,8 +203,9 @@ class PHYSECProtocolMonitor:
     def start_monitoring(self):
         """Start protocol monitoring"""
         print("🔧 Starting PHYSEC Protocol Monitor...")
-        print(f"📡 Monitoring Alice: {self.alice_ip}:{self.alice_port}")
-        print(f"📡 Monitoring Bob:   {self.bob_ip}:{self.bob_port}")
+        print(f"📡 Monitoring Alice: {self.alice_ip}:{self.alice_port} (monitoring port)")
+        print(f"📡 Monitoring Bob:   {self.bob_ip}:{self.bob_port} (monitoring port)")
+        print(f"💡 Main protocol ports: Alice {self.alice_port-1000}, Bob {self.bob_port-1000}")
         
         if self.visualizer:
             print("🎨 Dynamic visualization enabled")
