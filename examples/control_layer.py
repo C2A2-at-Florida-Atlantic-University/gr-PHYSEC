@@ -159,20 +159,35 @@ class PhysecNode:
         try:
             self.monitor_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.monitor_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            self.monitor_socket.bind((ip, self.monitor_port))
+            # Force binding to all interfaces for external access
+            self.monitor_socket.bind(('0.0.0.0', self.monitor_port))
             self.monitor_socket.listen(5)  # Allow multiple monitor connections
-            logger.info(f"{self.node_name} monitoring server listening on port {self.monitor_port}")
+            logger.info(f"{self.node_name} monitoring server listening on port {self.monitor_port} (0.0.0.0)")
             
             self.monitor_thread = threading.Thread(target=self._monitor_server_loop, daemon=True)
             self.monitor_thread.start()
             
         except Exception as e:
             logger.error(f"{self.node_name} failed to start monitoring server: {e}")
+            # Fallback: try to bind to localhost only
+            try:
+                self.monitor_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self.monitor_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                self.monitor_socket.bind(('127.0.0.1', self.monitor_port))
+                self.monitor_socket.listen(5)
+                logger.info(f"{self.node_name} monitoring server listening on port {self.monitor_port} (127.0.0.1)")
+                
+                self.monitor_thread = threading.Thread(target=self._monitor_server_loop, daemon=True)
+                self.monitor_thread.start()
+            except Exception as e2:
+                logger.error(f"{self.node_name} failed to start monitoring server (fallback): {e2}")
     
     def _monitor_server_loop(self):
         """Monitor server loop for handling status requests"""
+        logger.info(f"{self.node_name} monitor server loop started")
         while self.running:
             try:
+                logger.debug(f"{self.node_name} monitor server waiting for connections...")
                 client_socket, addr = self.monitor_socket.accept()
                 logger.info(f"{self.node_name} monitoring connection from {addr}")
                 threading.Thread(target=self.handle_monitor_request, args=(client_socket,)).start()
