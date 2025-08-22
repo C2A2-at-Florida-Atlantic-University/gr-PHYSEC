@@ -735,6 +735,18 @@ class Alice(PhysecNode):
             logger.info(f"Alice received encrypted message: {encrypted_data}")
             # In a real implementation, decrypt using self.key
             
+        elif msg_type == "status_request":
+            # Handle status request from monitor
+            logger.info("Alice received status request from monitor")
+            response = {
+                "type": "status_response",
+                "state": self.state,
+                "run_number": getattr(self, 'run_count', 0),
+                "run_state": self.state,
+                "timestamp": time.time()
+            }
+            self.send_message(response)
+            
         elif msg_type == "run_ack":
             # Handle run acknowledgment from Bob
             run_number = message.get("run_number", 0)
@@ -880,6 +892,18 @@ class Bob(PhysecNode):
             logger.info(f"Bob received encrypted message: {encrypted_data}")
             # In a real implementation, decrypt using self.key
             
+        elif msg_type == "status_request":
+            # Handle status request from monitor
+            logger.info("Bob received status request from monitor")
+            response = {
+                "type": "status_response",
+                "state": self.state,
+                "run_number": self.run_count,
+                "run_state": self.state,
+                "timestamp": time.time()
+            }
+            self.send_message(response)
+            
         elif msg_type == "run_complete":
             # Handle run completion - Bob responds to continue or stop
             run_number = message.get("run_number", 0)
@@ -915,9 +939,9 @@ class Bob(PhysecNode):
             # Send acknowledgment back to Alice
             response = {
                 "type": "run_ack",
-                "run_number": run_number,
-                "timestamp": time.time()
-            }
+                    "run_number": run_number,
+                    "timestamp": time.time()
+                }
             self.send_message(response)
             
             # Check if we've completed all expected runs

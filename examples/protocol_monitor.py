@@ -87,7 +87,22 @@ class PHYSECProtocolMonitor:
                 return {"state": "unknown", "error": "No response"}
                 
         except Exception as e:
-            return {"state": "disconnected", "error": str(e)}
+            # If connection fails, the node might be busy with another connection
+            # Try a different approach - just check if the port is open
+            try:
+                test_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                test_sock.settimeout(1.0)
+                result = test_sock.connect_ex((ip, port))
+                test_sock.close()
+                
+                if result == 0:
+                    # Port is open but we can't establish a new connection
+                    # This usually means the node is busy with another session
+                    return {"state": "busy", "error": "Node is busy with another connection"}
+                else:
+                    return {"state": "disconnected", "error": str(e)}
+            except:
+                return {"state": "disconnected", "error": str(e)}
     
     def monitor_alice_protocol(self):
         """Monitor Alice's protocol state"""
@@ -176,6 +191,9 @@ class PHYSECProtocolMonitor:
             print("   📡 Probe transmission in progress")
         elif self.alice_state == "requesting" or self.bob_state == "accepted":
             print("   🤝 Key generation request initiated")
+        elif self.alice_state == "busy" or self.bob_state == "busy":
+            print("   🔒 One or both nodes are busy with another connection")
+            print("   💡 This is normal when Alice and Bob are actively communicating")
         else:
             print("   ⏸️  Protocol idle or unknown state")
         
