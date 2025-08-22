@@ -148,39 +148,58 @@ class PhysecNode:
 
     def handle_client(self, client_socket):
         """Handle incoming client messages"""
+        buffer = b""
         try:
+            peer_info = client_socket.getpeername()
+            logger.info(f"{self.node_name} handling messages from {peer_info}")
+            
             while self.running:
                 data = client_socket.recv(4096)
                 if not data:
+                    logger.info(f"{self.node_name} peer {peer_info} disconnected")
                     break
                 
-                try:
-                    message = json.loads(data.decode('utf-8'))
-                    self.process_message(message)
-                except json.JSONDecodeError as e:
-                    logger.error(f"Failed to decode message: {e}")
+                buffer += data
+                # Process complete messages (delimited by newlines)
+                while b'\n' in buffer:
+                    line, buffer = buffer.split(b'\n', 1)
+                    if line:
+                        try:
+                            message = json.loads(line.decode('utf-8'))
+                            logger.info(f"{self.node_name} received: {message.get('type', 'unknown')} from {peer_info}")
+                            self.process_message(message)
+                        except json.JSONDecodeError as e:
+                            logger.error(f"{self.node_name} failed to decode message from {peer_info}: {e}")
                     
         except Exception as e:
-            logger.error(f"Client handler error: {e}")
+            logger.error(f"{self.node_name} client handler error: {e}")
         finally:
-            client_socket.close()
+            try:
+                client_socket.close()
+                logger.info(f"{self.node_name} closed connection to {peer_info}")
+            except:
+                pass
 
     def send_message(self, message):
         """Send message to peer node"""
         try:
             if not self.client_socket:
+                logger.info(f"{self.node_name} creating connection to {self.peer_host}:{self.peer_port}")
                 self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self.client_socket.settimeout(10.0)  # Add timeout
                 self.client_socket.connect((self.peer_host, self.peer_port))
+                logger.info(f"{self.node_name} connected to peer successfully")
             
-            data = json.dumps(message).encode('utf-8')
+            data = json.dumps(message).encode('utf-8') + b'\n'  # Add newline delimiter
             self.client_socket.send(data)
-            logger.info(f"{self.node_name} sent: {message['type']}")
+            logger.info(f"{self.node_name} sent: {message['type']} to {self.peer_host}:{self.peer_port}")
             
         except Exception as e:
-            logger.error(f"Failed to send message: {e}")
+            logger.error(f"{self.node_name} failed to send message to {self.peer_host}:{self.peer_port}: {e}")
             if self.client_socket:
                 self.client_socket.close()
                 self.client_socket = None
+            raise  # Re-raise to let caller handle the error
 
     def create_signal_source(self):
         """Create GNU Radio flowgraph for sinusoidal probe transmission"""
@@ -597,12 +616,18 @@ class Alice(PhysecNode):
         self.state = "requesting"
         self.update_visualization_step("Key Request")
         
-        # Step 1: Send key generation request
-        message = {
-            "type": "key_generation_request",
-            "timestamp": time.time()
-        }
-        self.send_message(message)
+        try:
+            # Step 1: Send key generation request
+            message = {
+                "type": "key_generation_request",
+                "timestamp": time.time()
+            }
+            self.send_message(message)
+            logger.info("Alice successfully sent key generation request")
+        except Exception as e:
+            logger.error(f"Alice failed to send key generation request: {e}")
+            self.state = "error"
+            raise
 
     def process_message(self, message):
         """Process messages specific to Alice"""
@@ -898,6 +923,27 @@ def main():
             
             # Start key generation process
             node.start_key_generation()
+            
+            # Keep Alice alive to receive responses
+            logger.info("Alice waiting for protocol completion...")
+            try:
+                while node.running and node.state not in ["key_ready", "error", "reconciliation_failed"]:
+                    time.sleep(0.5)
+                
+                if node.state == "key_ready":
+                    logger.info("✅ Alice key generation completed successfully!")
+                    if hasattr(node, 'key') and node.key:
+                        logger.info(f"✅ Alice generated {len(node.key)} byte key")
+                elif node.state == "error":
+                    logger.error("❌ Alice key generation failed with error")
+                elif node.state == "reconciliation_failed":
+                    logger.error("❌ Alice key generation failed during reconciliation")
+                else:
+                    logger.warning("⚠️  Alice key generation incomplete")
+                    
+            except KeyboardInterrupt:
+                logger.info("Alice interrupted by user")
+                node.running = False
             
         elif args.node == 'bob':
             node = Bob(peer_host=args.peer_host)
