@@ -609,6 +609,8 @@ class Alice(PhysecNode):
     def __init__(self, listen_port=8001, peer_host='localhost', peer_port=8002):
         super().__init__("Alice", listen_port, peer_host, peer_port)
         self.state = "idle"
+        self.run_ack_received = False
+        self.run_count = 0
 
     def start_key_generation(self):
         """Initiate key generation process"""
@@ -724,7 +726,7 @@ class Alice(PhysecNode):
                     # Signal run completion for statistics tracking
                     message = {
                         "type": "run_complete",
-                        "run_number": self.run_count + 1,
+                        "run_number": self.run_count,
                         "timestamp": time.time()
                     }
                     self.send_message(message)
@@ -737,6 +739,12 @@ class Alice(PhysecNode):
             encrypted_data = message.get("data")
             logger.info(f"Alice received encrypted message: {encrypted_data}")
             # In a real implementation, decrypt using self.key
+            
+        elif msg_type == "run_ack":
+            # Handle run acknowledgment from Bob
+            run_number = message.get("run_number", 0)
+            logger.info(f"Alice received run acknowledgment for run #{run_number}")
+            self.run_ack_received = True
             
         elif msg_type == "run_complete":
             # Handle run completion notification
@@ -879,25 +887,29 @@ class Bob(PhysecNode):
             run_number = message.get("run_number", 0)
             logger.info(f"Bob received run completion notification for run #{run_number}")
             
-            # Track run statistics
-            if self.state == "key_ready":
-                self.successful_runs += 1
-                logger.info(f"✅ Bob run #{run_number} completed successfully")
+            # Only process if this is the expected run number
+            if run_number == self.run_count:
+                # Track run statistics
+                if self.state == "key_ready":
+                    self.successful_runs += 1
+                    logger.info(f"✅ Bob run #{run_number} completed successfully")
+                else:
+                    self.failed_runs += 1
+                    logger.info(f"❌ Bob run #{run_number} failed")
+                
+                # Send acknowledgment back to Alice
+                response = {
+                    "type": "run_ack",
+                    "run_number": run_number,
+                    "timestamp": time.time()
+                }
+                self.send_message(response)
+                
+                # Reset for next run
+                logger.info(f"🔄 Bob preparing for next run...")
+                self.reset_for_new_run()
             else:
-                self.failed_runs += 1
-                logger.info(f"❌ Bob run #{run_number} failed")
-            
-            # Send acknowledgment back to Alice
-            response = {
-                "type": "run_ack",
-                "run_number": run_number,
-                "timestamp": time.time()
-            }
-            self.send_message(response)
-            
-            # Reset for next run
-            logger.info(f"🔄 Bob preparing for next run...")
-            self.reset_for_new_run()
+                logger.warning(f"⚠️  Bob received completion for run #{run_number} but current run is #{self.run_count} - ignoring")
 
     def send_encrypted_message(self, plaintext):
         """Send encrypted message to Alice"""
@@ -954,6 +966,7 @@ def main():
                 try:
                     # Reset node state for new run
                     node.reset_for_new_run()
+                    node.run_count = run_num  # Set the current run number
                     
                     # Start key generation process
                     node.start_key_generation()
@@ -993,6 +1006,19 @@ def main():
                         try:
                             node.send_message(completion_msg)
                             logger.info(f"📤 Sent run #{run_num} completion notification to Bob")
+                            
+                            # Wait for Bob's acknowledgment before proceeding
+                            logger.info(f"⏳ Waiting for Bob's acknowledgment of run #{run_num}...")
+                            timeout_start = time.time()
+                            while not hasattr(node, 'run_ack_received') or not node.run_ack_received:
+                                if time.time() - timeout_start > 10.0:  # 10 second timeout
+                                    logger.warning(f"⚠️  Timeout waiting for Bob's acknowledgment of run #{run_num}")
+                                    break
+                                time.sleep(0.1)
+                            
+                            # Reset acknowledgment flag
+                            node.run_ack_received = False
+                            
                         except Exception as e:
                             logger.warning(f"⚠️  Could not notify Bob of run completion: {e}")
                     
