@@ -60,6 +60,7 @@ class PhysecNode:
         self.server_socket = None
         self.client_socket = None
         self.running = False
+        self.transmitting = False  # Flag for probe transmission control
         
         # Data storage
         self.iq_samples = None
@@ -204,21 +205,25 @@ class PhysecNode:
         )
         
     def transmit_probe(self):
-        """Transmit sinusoidal probe signal"""
+        """Transmit sinusoidal probe signal with handshake control"""
         logger.info(f"{self.node_name} starting probe transmission...")
         
         try:
             # Use pre-initialized signal source
             self.signal_source.start_transmission()
+            self.transmitting = True
             
-            # Transmit for a specific duration
-            time.sleep(2.0)  # 2 seconds transmission
+            # Keep transmitting until told to stop
+            logger.info(f"Sinusoidal probe transmission started (freq=1000Hz)")
+            while self.transmitting:
+                time.sleep(0.1)  # Small sleep to avoid busy waiting
             
         except Exception as e:
             logger.error(f"{self.node_name} probe transmission failed: {e}")
             
         finally:
             # Always cleanup, even if there was an error
+            self.transmitting = False
             if self.signal_source:
                 try:
                     self.signal_source.stop_transmission()
@@ -226,6 +231,10 @@ class PhysecNode:
                     logger.warning(f"{self.node_name} error during cleanup: {e}")
         
         logger.info(f"{self.node_name} finished probe transmission")
+    
+    def stop_transmission(self):
+        """Stop ongoing probe transmission"""
+        self.transmitting = False
 
     def collect_samples(self):
         """Collect IQ samples from PlutoSDR"""
@@ -458,6 +467,7 @@ class PhysecNode:
         self.key = None
         self.shared_reconciled_key = None
         self.state = "idle"
+        self.transmitting = False  # Reset transmission flag
         self.run_count += 1
         
         # Give hardware and GNU Radio blocks time to fully release resources
@@ -599,13 +609,30 @@ class Alice(PhysecNode):
         msg_type = message.get("type")
         
         if msg_type == "probe_transmission_started" and self.state == "requesting":
-            # Step 3: Bob started transmitting, collect samples
+            # Step 3: Bob started transmitting, acknowledge and collect samples
             logger.info("Alice received probe transmission notification")
-            time.sleep(0.5)  # Small delay to ensure transmission started
             
+            # Send acknowledgment that Alice will start collecting
+            response = {
+                "type": "collection_started",
+                "timestamp": time.time()
+            }
+            self.send_message(response)
+            
+            # Small delay to ensure acknowledgment is sent
+            time.sleep(0.2)
+            
+            # Collect samples from Bob's transmission
             self.collect_samples()
             
-            # Notify Bob that Alice is transmitting
+            # Tell Bob to stop transmitting
+            response = {
+                "type": "stop_transmission",
+                "timestamp": time.time()
+            }
+            self.send_message(response)
+            
+            # Start own transmission
             response = {
                 "type": "probe_transmission_started",
                 "timestamp": time.time()
@@ -616,6 +643,11 @@ class Alice(PhysecNode):
             
             # Start own transmission (after notification to avoid blocking)
             threading.Thread(target=self.transmit_probe, name="AliceProbeTransmission").start()
+            
+        elif msg_type == "stop_transmission" and self.state == "transmitting":
+            # Bob finished collecting samples, stop transmission
+            logger.info("Alice received stop transmission request")
+            self.stop_transmission()
             
         elif msg_type == "samples_collected" and self.state == "transmitting":
             # Step 4: Bob collected samples, start processing
@@ -716,23 +748,47 @@ class Bob(PhysecNode):
             logger.info("Bob received key generation request")
             self.state = "accepted"
             
-            # Start transmitting probe
-            threading.Thread(target=self.transmit_probe).start()
-            
-            # Notify Alice that transmission started
+            # Notify Alice that transmission will start
             response = {
-                "type": "probe_transmission_started",
+                "type": "probe_transmission_started", 
                 "timestamp": time.time()
             }
             self.send_message(response)
             self.state = "transmitting"
             
-        elif msg_type == "probe_transmission_started" and self.state == "transmitting":
-            # Step 4: Alice started transmitting, collect samples
-            logger.info("Bob received Alice's transmission notification")
-            time.sleep(0.5)  # Small delay to ensure transmission started
+        elif msg_type == "collection_started" and self.state == "transmitting":
+            # Alice acknowledged, start actual transmission
+            logger.info("Bob starting probe transmission...")
+            threading.Thread(target=self.transmit_probe).start()
             
+        elif msg_type == "stop_transmission" and self.state == "transmitting":
+            # Alice finished collecting, stop transmission
+            logger.info("Bob received stop transmission request")
+            self.stop_transmission()
+            
+        elif msg_type == "probe_transmission_started" and self.state == "transmitting":
+            # Step 4: Alice started transmitting, acknowledge and collect samples
+            logger.info("Bob received Alice's transmission notification")
+            
+            # Send acknowledgment that Bob will start collecting
+            response = {
+                "type": "collection_started",
+                "timestamp": time.time()
+            }
+            self.send_message(response)
+            
+            # Small delay to ensure acknowledgment is sent
+            time.sleep(0.2)
+            
+            # Collect samples from Alice's transmission
             self.collect_samples()
+            
+            # Tell Alice to stop transmitting
+            response = {
+                "type": "stop_transmission",
+                "timestamp": time.time()
+            }
+            self.send_message(response)
             
             # Notify Alice that samples are collected
             response = {
