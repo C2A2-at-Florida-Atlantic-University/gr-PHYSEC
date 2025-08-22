@@ -772,6 +772,7 @@ class Bob(PhysecNode):
         super().__init__("Bob", listen_port, peer_host, peer_port)
         self.state = "idle"
         self.run_count = 0
+        self.current_run_number = 0
         self.successful_runs = 0
         self.failed_runs = 0
 
@@ -782,6 +783,7 @@ class Bob(PhysecNode):
         if msg_type == "key_generation_request" and self.state == "idle":
             # Step 2: Accept request and start transmitting probe
             self.run_count += 1
+            self.current_run_number = self.run_count  # Track current run being processed
             logger.info(f"Bob received key generation request for run #{self.run_count}")
             self.state = "accepted"
             
@@ -887,29 +889,31 @@ class Bob(PhysecNode):
             run_number = message.get("run_number", 0)
             logger.info(f"Bob received run completion notification for run #{run_number}")
             
-            # Only process if this is the expected run number
-            if run_number == self.run_count:
-                # Track run statistics
-                if self.state == "key_ready":
-                    self.successful_runs += 1
-                    logger.info(f"✅ Bob run #{run_number} completed successfully")
-                else:
-                    self.failed_runs += 1
-                    logger.info(f"❌ Bob run #{run_number} failed")
-                
-                # Send acknowledgment back to Alice
-                response = {
-                    "type": "run_ack",
-                    "run_number": run_number,
-                    "timestamp": time.time()
-                }
-                self.send_message(response)
-                
-                # Reset for next run
-                logger.info(f"🔄 Bob preparing for next run...")
-                self.reset_for_new_run()
+            # Track run statistics for the completed run
+            if self.state == "key_ready":
+                self.successful_runs += 1
+                logger.info(f"✅ Bob run #{run_number} completed successfully")
             else:
-                logger.warning(f"⚠️  Bob received completion for run #{run_number} but current run is #{self.run_count} - ignoring")
+                self.failed_runs += 1
+                logger.info(f"❌ Bob run #{run_number} failed")
+            
+            # Send acknowledgment back to Alice
+            response = {
+                "type": "run_ack",
+                "run_number": run_number,
+                "timestamp": time.time()
+            }
+            self.send_message(response)
+            
+            # Check if we've completed all expected runs
+            if hasattr(self, 'expected_runs') and (self.successful_runs + self.failed_runs) >= self.expected_runs:
+                logger.info(f"🎯 Bob completed all {self.expected_runs} runs - shutting down server")
+                self.running = False
+                return
+            
+            # Reset for next run
+            logger.info(f"🔄 Bob preparing for next run...")
+            self.reset_for_new_run()
 
     def send_encrypted_message(self, plaintext):
         """Send encrypted message to Alice"""
@@ -997,17 +1001,17 @@ def main():
                         logger.warning(f"⚠️  Run #{run_num} incomplete")
                     
                     # Send run completion notification to Bob
-                    if run_num < args.runs:  # Don't send for last run
-                        completion_msg = {
-                            "type": "run_complete",
-                            "run_number": run_num,
-                            "timestamp": time.time()
-                        }
-                        try:
-                            node.send_message(completion_msg)
-                            logger.info(f"📤 Sent run #{run_num} completion notification to Bob")
-                            
-                            # Wait for Bob's acknowledgment before proceeding
+                    completion_msg = {
+                        "type": "run_complete",
+                        "run_number": run_num,
+                        "timestamp": time.time()
+                    }
+                    try:
+                        node.send_message(completion_msg)
+                        logger.info(f"📤 Sent run #{run_num} completion notification to Bob")
+                        
+                        # Wait for Bob's acknowledgment before proceeding (except for last run)
+                        if run_num < args.runs:
                             logger.info(f"⏳ Waiting for Bob's acknowledgment of run #{run_num}...")
                             timeout_start = time.time()
                             while not hasattr(node, 'run_ack_received') or not node.run_ack_received:
@@ -1018,9 +1022,9 @@ def main():
                             
                             # Reset acknowledgment flag
                             node.run_ack_received = False
-                            
-                        except Exception as e:
-                            logger.warning(f"⚠️  Could not notify Bob of run completion: {e}")
+                        
+                    except Exception as e:
+                        logger.warning(f"⚠️  Could not notify Bob of run completion: {e}")
                     
                     # Wait between runs (except after last run)
                     if run_num < args.runs:
@@ -1055,6 +1059,7 @@ def main():
             
         elif args.node == 'bob':
             node = Bob(peer_host=args.peer_host)
+            node.expected_runs = args.runs  # Store expected runs
             
             # Start server and wait for connections
             logger.info(f"🚀 Bob starting server for {args.runs} protocol run(s)...")
@@ -1068,11 +1073,12 @@ def main():
                 logger.info("\n" + "=" * 60)
                 logger.info(f"📊 BOB MULTI-RUN SUMMARY")
                 logger.info("=" * 60)
-                logger.info(f"   Total Runs Handled: {node.run_count}")
+                logger.info(f"   Expected Runs: {args.runs}")
+                logger.info(f"   Completed Runs: {node.successful_runs + node.failed_runs}")
                 logger.info(f"   Successful: {node.successful_runs}")
                 logger.info(f"   Failed: {node.failed_runs}")
-                if node.run_count > 0:
-                    logger.info(f"   Success Rate: {(node.successful_runs/node.run_count)*100:.1f}%")
+                if (node.successful_runs + node.failed_runs) > 0:
+                    logger.info(f"   Success Rate: {(node.successful_runs/(node.successful_runs + node.failed_runs))*100:.1f}%")
                 logger.info("=" * 60)
             
     except KeyboardInterrupt:
