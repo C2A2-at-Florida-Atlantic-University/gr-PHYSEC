@@ -723,13 +723,8 @@ class Alice(PhysecNode):
                     # Step 9: Send encrypted test message
                     self.send_encrypted_message("Hello from Alice!")
                     
-                    # Signal run completion for statistics tracking
-                    message = {
-                        "type": "run_complete",
-                        "run_number": self.run_count,
-                        "timestamp": time.time()
-                    }
-                    self.send_message(message)
+                    # Note: Run completion is now handled in the main multi-run loop
+                    # to prevent duplicate messages
             else:
                 logger.warning("Alice received failed reconciliation - marking run as failed")
                 self.state = "reconciliation_failed"
@@ -775,6 +770,7 @@ class Bob(PhysecNode):
         self.current_run_number = 0
         self.successful_runs = 0
         self.failed_runs = 0
+        self.processed_runs = set()  # Track which runs we've already processed
 
     def process_message(self, message):
         """Process messages specific to Bob"""
@@ -888,6 +884,25 @@ class Bob(PhysecNode):
             # Handle run completion - Bob responds to continue or stop
             run_number = message.get("run_number", 0)
             logger.info(f"Bob received run completion notification for run #{run_number}")
+            logger.info(f"   Current state: {self.state}")
+            logger.info(f"   Already processed runs: {self.processed_runs}")
+            logger.info(f"   Current run count: {self.run_count}")
+            
+            # Check if we've already processed this run
+            if run_number in self.processed_runs:
+                logger.warning(f"⚠️  Bob already processed run #{run_number} - ignoring duplicate")
+                # Still send acknowledgment to prevent Alice from hanging
+                response = {
+                    "type": "run_ack",
+                    "run_number": run_number,
+                    "timestamp": time.time()
+                }
+                self.send_message(response)
+                return
+            
+            # Mark this run as processed
+            self.processed_runs.add(run_number)
+            logger.info(f"   Marked run #{run_number} as processed")
             
             # Track run statistics for the completed run
             if self.state == "key_ready":
@@ -1014,11 +1029,17 @@ def main():
                         if run_num < args.runs:
                             logger.info(f"⏳ Waiting for Bob's acknowledgment of run #{run_num}...")
                             timeout_start = time.time()
-                            while not hasattr(node, 'run_ack_received') or not node.run_ack_received:
-                                if time.time() - timeout_start > 10.0:  # 10 second timeout
-                                    logger.warning(f"⚠️  Timeout waiting for Bob's acknowledgment of run #{run_num}")
-                                    break
-                                time.sleep(0.1)
+                            ack_received = False
+                            
+                            while not ack_received and (time.time() - timeout_start) < 10.0:
+                                if hasattr(node, 'run_ack_received') and node.run_ack_received:
+                                    ack_received = True
+                                    logger.info(f"✅ Received acknowledgment for run #{run_num}")
+                                else:
+                                    time.sleep(0.1)
+                            
+                            if not ack_received:
+                                logger.warning(f"⚠️  Timeout waiting for Bob's acknowledgment of run #{run_num}")
                             
                             # Reset acknowledgment flag
                             node.run_ack_received = False
