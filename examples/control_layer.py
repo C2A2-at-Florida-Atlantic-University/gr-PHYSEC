@@ -242,33 +242,37 @@ class PhysecNode:
         elif self.state == "transmitting":
             return "Probe TX"
         elif self.state == "collecting":
-            return "Collection"
+            return "Sample Collection"
         elif self.state == "processing":
-            return "Processing"
+            return "PHYSEC Processing"
         elif self.state == "generating":
-            return "Generation"
+            return "Parity Generation"
         elif self.state == "reconciling":
             return "Reconciliation"
         elif self.state == "amplifying":
-            return "Amplification"
+            return "Privacy Amplification"
         elif self.state == "key_ready":
             return "Key Exchange"
+        elif self.state == "sent_parity":
+            return "Parity Generation"
+        elif self.state == "accepted":
+            return "Key Request"
         elif self.state == "error":
-            return "Error"
+            return "Complete"  # Map error to Complete for visualization
         elif self.state == "reconciliation_failed":
-            return "Reconciliation Failed"
+            return "Complete"  # Map failure to Complete for visualization
         else:
             # Try to infer from activities
             if self.transmitting:
                 return "Probe TX"
             elif self.iq_samples is not None and self.spectrogram_data is None:
-                return "Collection"
+                return "Sample Collection"
             elif self.spectrogram_data is not None and self.key is None:
-                return "Processing"
+                return "PHYSEC Processing"
             elif self.key is not None:
-                return "Key Ready"
+                return "Key Exchange"
             else:
-                return "Unknown"
+                return "Idle"  # Default to Idle instead of Unknown
 
     def handle_client(self, client_socket):
         """Handle incoming client messages"""
