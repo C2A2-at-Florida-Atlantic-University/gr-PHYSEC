@@ -1,53 +1,34 @@
 #!/usr/bin/env python3
 """
-Protocol Monitor for Distributed PHYSEC Deployment
-Connects to running Alice and Bob nodes to monitor protocol execution in real-time
+Simplified PHYSEC Protocol Monitor
+Monitors Alice and Bob nodes and displays their protocol status
 """
 
 import socket
 import json
 import time
-import threading
 import argparse
-from datetime import datetime
 import sys
 import os
 
-# Add the current directory to Python path to import dynamic_visualization
+# Add current directory to path for imports
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 try:
     from dynamic_visualization import PhysecDynamicVisualizer
     VISUALIZATION_AVAILABLE = True
 except ImportError as e:
-    print(f"⚠️  Warning: Could not import dynamic_visualization: {e}")
-    print("   The monitor will run in text-only mode")
+    print(f"⚠️  Warning: Could not import visualization: {e}")
     VISUALIZATION_AVAILABLE = False
 
-class PHYSECProtocolMonitor:
-    """Monitor PHYSEC protocol execution in real-time"""
-    
-    def __init__(self, alice_ip, bob_ip, alice_port=8001, bob_port=8002):
+class SimpleProtocolMonitor:
+    def __init__(self, alice_ip, bob_ip, alice_port=9001, bob_port=9002):
         self.alice_ip = alice_ip
         self.bob_ip = bob_ip
-        self.alice_port = alice_port + 1000  # Use monitoring ports
-        self.bob_port = bob_port + 1000      # Use monitoring ports
+        self.alice_port = alice_port
+        self.bob_port = bob_port
         
-        # Protocol state tracking
-        self.alice_state = "unknown"
-        self.bob_state = "unknown"
-        self.alice_protocol_step = "Idle"
-        self.bob_protocol_step = "Idle"
-        self.current_run = 0
-        self.alice_run_state = "idle"
-        self.bob_run_state = "idle"
-        
-        # Statistics
-        self.successful_runs = 0
-        self.failed_runs = 0
-        self.run_durations = []
-        
-        # Visualization
+        # Initialize visualization if available
         self.visualizer = None
         if VISUALIZATION_AVAILABLE:
             try:
@@ -55,237 +36,178 @@ class PHYSECProtocolMonitor:
                 self.visualizer.start_visualization()
                 print("✅ Dynamic visualization started")
             except Exception as e:
-                print(f"⚠️  Could not start visualization: {e}")
+                print(f"⚠️  Warning: Could not start visualization: {e}")
                 self.visualizer = None
+        
+        # Node states
+        self.alice_state = "unknown"
+        self.bob_state = "unknown"
+        self.alice_protocol_step = "Idle"
+        self.bob_protocol_step = "Idle"
+        self.current_run = 0
         
         self.running = True
         
+        print(f"🔧 Starting Simple PHYSEC Protocol Monitor...")
+        print(f"📡 Monitoring Alice: {alice_ip}:{alice_port} (monitoring port)")
+        print(f"📡 Monitoring Bob:   {bob_ip}:{bob_port} (monitoring port)")
+        print(f"💡 Main protocol ports: Alice {alice_port-1000}, Bob {bob_port-1000}")
+        
+        if self.visualizer:
+            print("🎨 Dynamic visualization enabled")
+            print("   • Real-time protocol step updates")
+            print("   • Success rate and timing statistics")
+        else:
+            print("⚠️  Visualization disabled - text-only monitoring")
+        
+        print("⏳ Starting protocol monitoring...")
+
     def connect_to_node(self, ip, port, node_name):
-        """Connect to a node and get its current state"""
+        """Simple connection to get node status"""
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(2.0)
+            sock.settimeout(2)  # 2 second timeout
             sock.connect((ip, port))
             
-            # Send a status request
-            request = {
-                "type": "status_request",
-                "timestamp": time.time()
-            }
+            # Send status request
+            request = {"type": "status_request"}
             sock.send(json.dumps(request).encode('utf-8') + b'\n')
             
-            # Wait for response
-            sock.settimeout(5.0)
+            # Get response
             data = sock.recv(1024)
             sock.close()
             
             if data:
-                try:
-                    response = json.loads(data.decode('utf-8').strip())
-                    return response
-                except json.JSONDecodeError:
-                    return {"state": "unknown", "error": "Invalid JSON response"}
+                response = json.loads(data.decode('utf-8').strip())
+                return response
             else:
-                return {"state": "unknown", "error": "No response"}
+                return {"state": "no_response"}
                 
         except Exception as e:
-            # If connection fails, the node might be busy with another connection
-            # Try a different approach - just check if the port is open
+            return {"state": "connection_error", "error": str(e)}
+
+    def update_visualization(self):
+        """Simple visualization update"""
+        if self.visualizer:
             try:
-                test_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                test_sock.settimeout(1.0)
-                result = test_sock.connect_ex((ip, port))
-                test_sock.close()
+                # Update protocol steps
+                self.visualizer.update_step("Alice", self.alice_protocol_step)
+                self.visualizer.update_step("Bob", self.bob_protocol_step)
                 
-                if result == 0:
-                    # Port is open but we can't establish a new connection
-                    # This usually means the node is busy with another session
-                    return {"state": "busy", "error": "Node is busy with another connection"}
-                else:
-                    return {"state": "disconnected", "error": str(e)}
-            except:
-                return {"state": "disconnected", "error": str(e)}
-    
-    def monitor_alice_protocol(self):
-        """Monitor Alice's protocol state"""
-        while self.running:
-            try:
-                response = self.connect_to_node(self.alice_ip, self.alice_port, "Alice")
-                old_state = self.alice_state
-                self.alice_state = response.get("state", "unknown")
+                # Process events and update display
+                self.visualizer.process_events()
+                self.visualizer.update_display()
                 
-                # Extract protocol step information
-                old_protocol_step = self.alice_protocol_step
-                self.alice_protocol_step = response.get("protocol_step", "Idle")
-                
-                if self.alice_state != old_state:
-                    print(f"🔄 Alice state changed: {old_state} → {self.alice_state}")
-                    if self.visualizer:
-                        self.visualizer.update_step("Alice", self.alice_protocol_step)
-                
-                if self.alice_protocol_step != old_protocol_step:
-                    print(f"🔄 Alice protocol step: {old_protocol_step} → {self.alice_protocol_step}")
-                    if self.visualizer:
-                        self.visualizer.update_step("Alice", self.alice_protocol_step)
-                
-                # Extract run information if available
-                if "run_number" in response:
-                    self.current_run = response["run_number"]
-                if "run_state" in response:
-                    self.alice_run_state = response["run_state"]
-                    
             except Exception as e:
-                print(f"❌ Error monitoring Alice: {e}")
-            
-            time.sleep(5)  # Check every 5 seconds
-    
-    def monitor_bob_protocol(self):
-        """Monitor Bob's protocol state"""
-        while self.running:
-            try:
-                response = self.connect_to_node(self.bob_ip, self.bob_port, "Bob")
-                old_state = self.bob_state
-                self.bob_state = response.get("state", "unknown")
-                
-                # Extract protocol step information
-                old_protocol_step = self.bob_protocol_step
-                self.bob_protocol_step = response.get("protocol_step", "Idle")
-                
-                if self.bob_state != old_state:
-                    print(f"🔄 Bob state changed: {old_state} → {self.bob_state}")
-                    if self.visualizer:
-                        self.visualizer.update_step("Bob", self.bob_protocol_step)
-                
-                if self.bob_protocol_step != old_protocol_step:
-                    print(f"🔄 Bob protocol step: {old_protocol_step} → {self.bob_protocol_step}")
-                    if self.visualizer:
-                        self.visualizer.update_step("Bob", self.bob_protocol_step)
-                
-                # Extract run information if available
-                if "run_number" in response:
-                    self.current_run = response["run_number"]
-                if "run_state" in response:
-                    self.bob_run_state = response["run_state"]
-                    
-            except Exception as e:
-                print(f"❌ Error monitoring Bob: {e}")
-            
-            time.sleep(5)  # Check every 5 seconds
-    
-    def show_protocol_status(self):
-        """Display current protocol status"""
+                print(f"⚠️  Visualization update error: {e}")
+
+    def show_status(self):
+        """Display current status"""
         print("\n" + "="*70)
-        print(f"🔐 PHYSEC Protocol Monitor - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"🔐 Simple PHYSEC Protocol Monitor - {time.strftime('%Y-%m-%d %H:%M:%S')}")
         print("="*70)
         
-        # Node states
         print(f"\n📱 Node States:")
         print(f"   Alice ({self.alice_ip}:{self.alice_port}): {self.alice_state}")
         print(f"   Bob   ({self.bob_ip}:{self.bob_port}): {self.bob_state}")
         print(f"   💡 Monitoring via dedicated ports (main protocol: {self.alice_port-1000}, {self.bob_port-1000})")
         
-        # Protocol execution
         print(f"\n🚀 Protocol Execution:")
         print(f"   Current Run: {self.current_run}")
         print(f"   Alice Protocol Step: {self.alice_protocol_step}")
         print(f"   Bob Protocol Step: {self.bob_protocol_step}")
-        print(f"   Alice Run State: {self.alice_run_state}")
-        print(f"   Bob Run State: {self.bob_run_state}")
         
-        # Statistics
-        print(f"\n📊 Statistics:")
-        print(f"   Successful Runs: {self.successful_runs}")
-        print(f"   Failed Runs: {self.failed_runs}")
-        if self.run_durations:
-            avg_duration = sum(self.run_durations) / len(self.run_durations)
-            print(f"   Average Duration: {avg_duration:.2f}ms")
-        
-        # Protocol progress
         print(f"\n🎯 Protocol Progress:")
-        if self.alice_state == "key_ready" and self.bob_state == "key_ready":
-            print("   ✅ Both nodes completed key generation successfully!")
-        elif self.alice_state == "error" or self.bob_state == "error":
-            print("   ❌ One or both nodes encountered an error")
-        elif self.alice_state == "reconciliation_failed" or self.bob_state == "reconciliation_failed":
-            print("   ⚠️  Reconciliation failed on one or both nodes")
-        elif self.alice_state in ["processing", "sent_parity"] or self.bob_state in ["processing", "sent_parity"]:
-            print("   🔄 Protocol in progress - processing samples")
-        elif self.alice_state == "transmitting" or self.bob_state == "transmitting":
-            print("   📡 Probe transmission in progress")
-        elif self.alice_state == "requesting" or self.bob_state == "accepted":
-            print("   🤝 Key generation request initiated")
-        elif self.alice_state == "busy" or self.bob_state == "busy":
-            print("   🔒 One or both nodes are busy with another connection")
-            print("   💡 This is normal when Alice and Bob are actively communicating")
+        if self.alice_protocol_step == "Probe TX" and self.bob_protocol_step == "Probe TX":
+            print(f"   📡 Both nodes transmitting probes")
+        elif self.alice_protocol_step == "Sample Collection" or self.bob_protocol_step == "Sample Collection":
+            print(f"   📊 Sample collection in progress")
+        elif self.alice_protocol_step == "PHYSEC Processing" or self.bob_protocol_step == "PHYSEC Processing":
+            print(f"   🔬 PHYSEC processing in progress")
+        elif self.alice_protocol_step == "Reconciliation" or self.bob_protocol_step == "Reconciliation":
+            print(f"   🔑 Key reconciliation in progress")
+        elif self.alice_protocol_step == "Complete" or self.bob_protocol_step == "Complete":
+            print(f"   ✅ Protocol run completed")
         else:
-            print("   ⏸️  Protocol idle or unknown state")
+            print(f"   ⏸️  Protocol idle or unknown state")
         
         print("="*70)
-    
-    def start_monitoring(self):
-        """Start protocol monitoring"""
-        print("🔧 Starting PHYSEC Protocol Monitor...")
-        print(f"📡 Monitoring Alice: {self.alice_ip}:{self.alice_port} (monitoring port)")
-        print(f"📡 Monitoring Bob:   {self.bob_ip}:{self.bob_port} (monitoring port)")
-        print(f"💡 Main protocol ports: Alice {self.alice_port-1000}, Bob {self.bob_port-1000}")
-        
-        if self.visualizer:
-            print("🎨 Dynamic visualization enabled")
-            print("   • Real-time protocol step updates")
-            print("   • IQ data and spectrogram visualization")
-            print("   • Success rate and timing statistics")
-        else:
-            print("📝 Running in text-only mode")
+
+    def monitor_once(self):
+        """Single monitoring cycle"""
+        # Check Alice
+        try:
+            response = self.connect_to_node(self.alice_ip, self.alice_port, "Alice")
+            old_state = self.alice_state
+            old_step = self.alice_protocol_step
             
-        print("⏳ Starting protocol monitoring...")
+            self.alice_state = response.get("state", "unknown")
+            self.alice_protocol_step = response.get("protocol_step", "Idle")
+            
+            if "run_number" in response:
+                self.current_run = response["run_number"]
+            
+            # Check for changes
+            if self.alice_state != old_state or self.alice_protocol_step != old_step:
+                print(f"🔄 Alice: {old_state}→{self.alice_state}, {old_step}→{self.alice_protocol_step}")
+                self.update_visualization()
+                
+        except Exception as e:
+            print(f"❌ Error monitoring Alice: {e}")
         
-        # Start monitoring threads
-        alice_thread = threading.Thread(target=self.monitor_alice_protocol, daemon=True)
-        bob_thread = threading.Thread(target=self.monitor_bob_protocol, daemon=True)
-        
-        alice_thread.start()
-        bob_thread.start()
-        
-        print(f"\n🔄 Protocol monitoring started... (Press Ctrl+C to stop)")
+        # Check Bob
+        try:
+            response = self.connect_to_node(self.bob_ip, self.bob_port, "Bob")
+            old_state = self.bob_state
+            old_step = self.bob_protocol_step
+            
+            self.bob_state = response.get("state", "unknown")
+            self.bob_protocol_step = response.get("protocol_step", "Idle")
+            
+            if "run_number" in response:
+                self.current_run = response["run_number"]
+            
+            # Check for changes
+            if self.bob_state != old_state or self.bob_protocol_step != old_step:
+                print(f"🔄 Bob: {old_state}→{self.bob_state}, {old_step}→{self.bob_protocol_step}")
+                self.update_visualization()
+                
+        except Exception as e:
+            print(f"❌ Error monitoring Bob: {e}")
+
+    def start_monitoring(self):
+        """Start simple monitoring loop"""
+        print(f"\n🔄 Simple monitoring started... (Press Ctrl+C to stop)")
         
         try:
             while self.running:
-                time.sleep(15)  # Update status every 15 seconds
-                self.show_protocol_status()
+                # Single monitoring cycle
+                self.monitor_once()
                 
-                # Update visualization if available
-                if self.visualizer:
-                    self.visualizer.process_events()
-                    self.visualizer.update_display()
-                    
+                # Show status every 5 seconds
+                time.sleep(5)
+                self.show_status()
+                
         except KeyboardInterrupt:
-            print(f"\n🛑 Stopping protocol monitor...")
-            self.running = False
-            
-            # Stop visualization
+            print(f"\n🛑 Stopping simple protocol monitor...")
+        finally:
             if self.visualizer:
-                self.visualizer.stop_visualization()
-                print("🎨 Visualization stopped")
+                try:
+                    self.visualizer.stop_visualization()
+                    print("🎨 Visualization stopped")
+                except:
+                    pass
 
 def main():
-    parser = argparse.ArgumentParser(description='PHYSEC Protocol Monitor')
-    parser.add_argument('--alice-ip', required=True, help='Alice node IP address')
-    parser.add_argument('--bob-ip', required=True, help='Bob node IP address')
-    parser.add_argument('--alice-port', type=int, default=8001, help='Alice port (default: 8001)')
-    parser.add_argument('--bob-port', type=int, default=8002, help='Bob port (default: 8002)')
+    parser = argparse.ArgumentParser(description="Simple PHYSEC Protocol Monitor")
+    parser.add_argument("--alice-ip", required=True, help="Alice's IP address")
+    parser.add_argument("--bob-ip", required=True, help="Bob's IP address")
+    parser.add_argument("--alice-port", type=int, default=9001, help="Alice's monitoring port (default: 9001)")
+    parser.add_argument("--bob-port", type=int, default=9002, help="Bob's monitoring port (default: 9002)")
     
     args = parser.parse_args()
     
-    print("🔐 PHYSEC Protocol Monitor")
-    print("=" * 50)
-    
-    monitor = PHYSECProtocolMonitor(
-        alice_ip=args.alice_ip,
-        bob_ip=args.bob_ip,
-        alice_port=args.alice_port,
-        bob_port=args.bob_port
-    )
-    
+    monitor = SimpleProtocolMonitor(args.alice_ip, args.bob_ip, args.alice_port, args.bob_port)
     monitor.start_monitoring()
 
 if __name__ == "__main__":
