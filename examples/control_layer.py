@@ -91,6 +91,11 @@ class PhysecNode:
         self.monitor_socket = None
         self.monitor_thread = None
         
+        # Monitor connection for pushing data
+        self.monitor_connection = None
+        self.monitor_ip = None  # Will be set when monitor connects
+        self.monitor_data_port = 9999  # Port for pushing data to monitor
+        
         # Pre-initialize flowgraphs for reuse
         self._initialize_flowgraphs()
         
@@ -192,6 +197,12 @@ class PhysecNode:
                 logger.debug(f"{self.node_name} monitor server waiting for connections...")
                 client_socket, addr = self.monitor_socket.accept()
                 logger.info(f"{self.node_name} monitoring connection from {addr}")
+                
+                # Store monitor connection for data pushing
+                self.monitor_connection = client_socket
+                self.monitor_ip = addr[0]
+                logger.info(f"{self.node_name} monitor connected from {self.monitor_ip}")
+                
                 threading.Thread(target=self.handle_monitor_request, args=(client_socket,)).start()
             except Exception as e:
                 if self.running:
@@ -300,11 +311,8 @@ class PhysecNode:
                     pass
         except Exception as e:
             logger.error(f"{self.node_name} monitor request handler error: {e}")
-        finally:
-            try:
-                client_socket.close()
-            except:
-                pass
+            # Don't close the socket on error - keep connection for data pushing
+        # Note: We don't close the socket here to keep the connection alive for data pushing
     
     def _get_protocol_step(self):
         """Determine the current protocol step based on state and activities"""
@@ -491,6 +499,9 @@ class PhysecNode:
                 
                 # Log that IQ samples are ready for monitor
                 logger.info(f"📤 {self.node_name} IQ samples ready for monitor: {len(self.iq_samples)} samples")
+                
+                # Push IQ samples to monitor automatically
+                self.push_data_to_monitor("iq_samples", self.iq_samples)
             else:
                 logger.error(f"{self.node_name} failed to collect samples")
                 
@@ -550,7 +561,10 @@ class PhysecNode:
                 self.update_visualization_spectrogram(self.spectrogram_data)
                 
                 # Log that spectrogram is ready for monitor
-                logger.info(f"📤 {self.node_name} spectrogram ready for monitor: shape {self.spectrogram_data.shape}")                
+                logger.info(f"📤 {self.node_name} spectrogram ready for monitor: shape {self.spectrogram_data.shape}")
+                
+                # Push spectrogram to monitor automatically
+                self.push_data_to_monitor("spectrogram", self.spectrogram_data)                
         finally:
             # Ensure proper cleanup of GNU Radio flowgraph
             try:
@@ -770,10 +784,95 @@ class PhysecNode:
                 except Exception as e:
                     logger.warning(f"Error cleaning up {name}: {e}")
 
+    def push_data_to_monitor(self, data_type, data):
+        """Automatically push data to the monitor when available"""
+        # Try to connect if not already connected
+        if not self.monitor_connection:
+            if not self.connect_to_monitor_data_server():
+                return  # Can't push data if we can't connect
+        
+        if self.monitor_connection and self.monitor_ip:
+            try:
+                if data_type == "iq_samples":
+                    message = {
+                        "type": "data_push",
+                        "data_type": "iq_samples",
+                        "node_name": self.node_name,
+                        "data": str(data.tolist()),
+                        "timestamp": time.time()
+                    }
+                elif data_type == "spectrogram":
+                    message = {
+                        "type": "data_push",
+                        "data_type": "spectrogram",
+                        "node_name": self.node_name,
+                        "data": str(data.tolist()),
+                        "timestamp": time.time()
+                    }
+                elif data_type == "quantized_bits":
+                    message = {
+                        "type": "data_push",
+                        "data_type": "quantized_bits",
+                        "node_name": self.node_name,
+                        "data": str(data.tolist()),
+                        "timestamp": time.time()
+                    }
+                elif data_type == "statistics":
+                    message = {
+                        "type": "data_push",
+                        "data_type": "statistics",
+                        "node_name": self.node_name,
+                        "data": data,
+                        "timestamp": time.time()
+                    }
+                
+                # Send data to monitor
+                self.monitor_connection.send(json.dumps(message).encode('utf-8') + b'\n')
+                logger.info(f"📤 {self.node_name} pushed {data_type} to monitor")
+                
+            except Exception as e:
+                logger.warning(f"{self.node_name} failed to push {data_type} to monitor: {e}")
+                # Reset monitor connection on error
+                self.monitor_connection = None
+                self.monitor_ip = None
+    
+    def connect_to_monitor_data_server(self):
+        """Connect to the monitor's data collection server"""
+        try:
+            # Try to connect to the monitor's data collection server
+            # We'll assume the monitor is running on the same network
+            # and try common IPs
+            potential_monitor_ips = ['192.168.0.142', '192.168.0.1', 'localhost']
+            
+            for monitor_ip in potential_monitor_ips:
+                try:
+                    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    sock.settimeout(2)
+                    sock.connect((monitor_ip, self.monitor_data_port))
+                    
+                    # Store the connection
+                    self.monitor_connection = sock
+                    self.monitor_ip = monitor_ip
+                    logger.info(f"{self.node_name} connected to monitor data server at {monitor_ip}:{self.monitor_data_port}")
+                    return True
+                    
+                except Exception as e:
+                    logger.debug(f"{self.node_name} failed to connect to {monitor_ip}:{self.monitor_data_port}: {e}")
+                    continue
+            
+            logger.warning(f"{self.node_name} could not connect to any monitor data server")
+            return False
+            
+        except Exception as e:
+            logger.error(f"{self.node_name} error connecting to monitor: {e}")
+            return False
+    
     def log_quantized_bits_ready(self):
         """Log that quantized bits are ready for BDR calculation"""
         if self.quantized_bits is not None:
             logger.info(f"{self.node_name} quantized bits ready ({len(self.quantized_bits)} bytes) for BDR calculation")
+            # Push quantized bits to monitor
+            self.push_data_to_monitor("quantized_bits", self.quantized_bits)
     
     def update_statistics(self, other_node):
         """Update running statistics from this protocol run (legacy method)"""
@@ -806,6 +905,16 @@ class PhysecNode:
             other_node.reconciliation_success_history.append(success)
             
             logger.info(f"Run #{self.run_count} - BER: {disagreement_ratio:.4f}, Correlation: {correlation:.4f}, Success: {success}")
+            
+            # Push statistics to monitor
+            stats_data = {
+                "run_number": self.run_count,
+                "bdr": disagreement_ratio,
+                "correlation": correlation,
+                "success": success,
+                "timing_ms": None  # Will be updated when key generation completes
+            }
+            self.push_data_to_monitor("statistics", stats_data)
 
 
     def cleanup(self):
