@@ -104,17 +104,48 @@ class SimplePushMonitor:
         """Handle data connection from a node"""
         try:
             print(f"🔗 Processing data connection from {addr}")
+            buffer = b""  # Buffer for incomplete messages
+            last_activity = time.time()
+            
             while self.data_server_running:
-                data = client_socket.recv(4096)
-                if not data:
-                    break
+                # Set timeout for receiving data
+                client_socket.settimeout(5.0)  # 5 second timeout
                 
                 try:
-                    message = json.loads(data.decode('utf-8').strip())
-                    self.process_pushed_data(message, addr)
-                except json.JSONDecodeError as e:
-                    print(f"⚠️  JSON decode error from {addr}: {e}")
-                    print(f"   Raw data: {data[:200]}...")
+                    data = client_socket.recv(4096)
+                    if not data:
+                        break
+                    
+                    # Update activity timestamp
+                    last_activity = time.time()
+                    
+                    # Add new data to buffer
+                    buffer += data
+                    
+                    # Process complete messages from buffer
+                    while b'\n' in buffer:
+                        # Split on newline to get complete messages
+                        message_data, buffer = buffer.split(b'\n', 1)
+                        
+                        if message_data.strip():
+                            try:
+                                message = json.loads(message_data.decode('utf-8').strip())
+                                self.process_pushed_data(message, addr)
+                            except json.JSONDecodeError as e:
+                                print(f"⚠️  JSON decode error from {addr}: {e}")
+                                print(f"   Message data: {message_data[:200]}...")
+                                continue
+                    
+                    # Debug: show buffer status
+                    if len(buffer) > 0:
+                        print(f"📦 Buffer from {addr}: {len(buffer)} bytes waiting for complete message")
+                        
+                except socket.timeout:
+                    # Check if we've been waiting too long for incomplete messages
+                    if len(buffer) > 0 and (time.time() - last_activity) > 10:
+                        print(f"⚠️  Timeout waiting for complete message from {addr}, clearing buffer")
+                        print(f"   Buffer content: {buffer[:200]}...")
+                        buffer = b""
                     continue
                     
         except Exception as e:
