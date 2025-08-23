@@ -244,21 +244,44 @@ class SimplePushMonitor:
                         print(f"   Data type: {type(data)}, Data: {str(data)[:100]}...")
                 
                 elif data_type == "quantized_bits":
-                    # Convert list back to bytes for BDR calculation
-                    if isinstance(data, list):
-                        qb_data = bytes(data)
-                    else:
-                        qb_data = data
-                        
-                    if node_name == "Alice":
-                        self.alice_quantized_bits = qb_data
-                        print(f"✅ Alice quantized bits: {len(qb_data)} bytes")
-                    elif node_name == "Bob":
-                        self.bob_quantized_bits = qb_data
-                        print(f"✅ Bob quantized bits: {len(qb_data)} bytes")
+                    print(f"🔍 Processing quantized bits from {node_name}")
+                    print(f"   📊 Raw data type: {type(data)}")
+                    print(f"   📊 Raw data: {str(data)[:100]}...")
                     
-                    # Check if we can calculate BDR
-                    self.calculate_bdr_if_ready()
+                    # Convert string representation back to bytes for BDR calculation
+                    try:
+                        if isinstance(data, list): # Data is now str(list) from control_layer, so it will be a list after json.loads
+                            qb_data = bytes(data)
+                            print(f"   ✅ Converted list to bytes: {len(qb_data)} bytes")
+                        elif isinstance(data, str):
+                            # Try to evaluate the string representation
+                            try:
+                                data_list = eval(data)
+                                qb_data = bytes(data_list)
+                                print(f"   ✅ Converted string to bytes: {len(qb_data)} bytes")
+                            except Exception as e:
+                                print(f"   ❌ Failed to convert string to bytes: {e}")
+                                qb_data = None
+                        else:
+                            qb_data = data
+                            print(f"   ⚠️  Using data as-is: {type(qb_data)}")
+                        
+                        if qb_data is not None:
+                            if node_name == "Alice":
+                                self.alice_quantized_bits = qb_data
+                                print(f"✅ Alice quantized bits: {len(qb_data)} bytes")
+                            elif node_name == "Bob":
+                                self.bob_quantized_bits = qb_data
+                                print(f"✅ Bob quantized bits: {len(qb_data)} bytes")
+                            
+                            # Check if we can calculate BDR
+                            self.calculate_bdr_if_ready()
+                        else:
+                            print(f"❌ Failed to process quantized bits from {node_name}")
+                            
+                    except Exception as e:
+                        print(f"❌ Error processing quantized bits from {node_name}: {e}")
+                        print(f"   Data: {str(data)[:200]}...")
                 
                 elif data_type == "statistics":
                     # Store statistics
@@ -313,6 +336,10 @@ class SimplePushMonitor:
 
     def calculate_bdr_if_ready(self):
         """Calculate BDR when both nodes have quantized bits"""
+        print(f"🔍 Checking if BDR can be calculated...")
+        print(f"   Alice quantized bits: {'✅ Available' if self.alice_quantized_bits is not None else '❌ Not available'}")
+        print(f"   Bob quantized bits: {'✅ Available' if self.bob_quantized_bits is not None else '❌ Not available'}")
+        
         if (self.alice_quantized_bits is not None and 
             self.bob_quantized_bits is not None):
             
@@ -398,6 +425,11 @@ class SimplePushMonitor:
                     except Exception as e:
                         print(f"⚠️  Visualization update error: {e}")
                 
+                # Periodically check quantized bits status
+                if int(time.time()) % 10 == 0:  # Every 10 seconds
+                    if self.alice_quantized_bits is None or self.bob_quantized_bits is None:
+                        print(f"⏳ Waiting for quantized bits... Alice: {'✅' if self.alice_quantized_bits is not None else '❌'}, Bob: {'✅' if self.bob_quantized_bits is not None else '❌'}")
+                
 
                 
         except KeyboardInterrupt:
@@ -414,6 +446,9 @@ class SimplePushMonitor:
             print(f"   Alice spectrogram: {'✅' if self.alice_spectrogram_data is not None else '❌'}")
             print(f"   Bob IQ data: {'✅' if self.bob_iq_data is not None else '❌'}")
             print(f"   Bob spectrogram: {'✅' if self.bob_spectrogram_data is not None else '❌'}")
+            print(f"   Alice quantized bits: {'✅' if self.alice_quantized_bits is not None else '❌'}")
+            print(f"   Bob quantized bits: {'✅' if self.bob_quantized_bits is not None else '❌'}")
+            print(f"   BDR calculation: {'✅' if (self.alice_quantized_bits is not None and self.bob_quantized_bits is not None) else '❌'}")
             
             if self.visualizer:
                 try:

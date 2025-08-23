@@ -556,11 +556,16 @@ class PhysecNode:
             if self.quantized_bits:
                 logger.info(f"{self.node_name} extracted {len(self.quantized_bits)} quantized bits")
                 
-                # Log that quantized bits are ready for BDR calculation
-                self.log_quantized_bits_ready()
-                
-                # Log that quantized bits are ready for monitor
-                logger.info(f"📤 {self.node_name} quantized bits ready for monitor: {len(self.quantized_bits)} bytes")
+                            # Log that quantized bits are ready for BDR calculation
+            self.log_quantized_bits_ready()
+            
+            # Log that quantized bits are ready for monitor
+            logger.info(f"📤 {self.node_name} quantized bits ready for monitor: {len(self.quantized_bits)} bytes")
+            
+            # Ensure monitor connection is still active
+            if not self.monitor_connection:
+                logger.warning(f"{self.node_name} monitor connection lost, attempting to reconnect...")
+                self.connect_to_monitor_data_server()
                 
             if self.spectrogram_data is not None:
                 logger.info(f"{self.node_name} processed spectrogram data with shape {self.spectrogram_data.shape}")
