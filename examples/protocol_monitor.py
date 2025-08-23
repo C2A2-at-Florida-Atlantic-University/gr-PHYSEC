@@ -145,9 +145,7 @@ class SimplePushMonitor:
                     # Update visualization
                     if self.visualizer:
                         self.visualizer.update_iq_data(node_name, iq_data)
-                        # Force complete visualization update
-                        self.visualizer.process_events()
-                        self.visualizer.update_display()
+                        # Mark that visualization needs update (don't call from thread)
                         print(f"🎨 Updated {node_name} IQ visualization")
                 
                 elif data_type == "spectrogram":
@@ -163,14 +161,16 @@ class SimplePushMonitor:
                     # Update visualization
                     if self.visualizer:
                         self.visualizer.update_spectrogram(node_name, spec_data)
-                        # Force complete visualization update
-                        self.visualizer.process_events()
-                        self.visualizer.update_display()
+                        # Mark that visualization needs update (don't call from thread)
                         print(f"🎨 Updated {node_name} spectrogram visualization")
                 
                 elif data_type == "quantized_bits":
-                    # Convert string representation back to bytes
-                    qb_data = bytes(eval(data))
+                    # Convert list back to bytes for BDR calculation
+                    if isinstance(data, list):
+                        qb_data = bytes(data)
+                    else:
+                        qb_data = data
+                        
                     if node_name == "Alice":
                         self.alice_quantized_bits = qb_data
                         print(f"✅ Alice quantized bits: {len(qb_data)} bytes")
@@ -197,9 +197,7 @@ class SimplePushMonitor:
                             data.get('success', True),
                             data.get('timing_ms')
                         )
-                        # Force complete visualization update
-                        self.visualizer.process_events()
-                        self.visualizer.update_display()
+                        # Mark that visualization needs update (don't call from thread)
                         print(f"🎨 Updated {node_name} statistics visualization")
                 
                 elif data_type == "protocol_step":
@@ -215,9 +213,7 @@ class SimplePushMonitor:
                     if self.visualizer:
                         self.visualizer.update_step("Alice", self.alice_protocol_step)
                         self.visualizer.update_step("Bob", self.bob_protocol_step)
-                        # Force complete visualization update
-                        self.visualizer.process_events()
-                        self.visualizer.update_display()
+                        # Mark that visualization needs update (don't call from thread)
                         print(f"🎨 Updated protocol step visualization")
                 
                 elif data_type == "run_update":
@@ -230,9 +226,7 @@ class SimplePushMonitor:
                     
                     # Update visualization with run number
                     if self.visualizer:
-                        # Force complete visualization update
-                        self.visualizer.process_events()
-                        self.visualizer.update_display()
+                        # Mark that visualization needs update (don't call from thread)
                         print(f"🎨 Updated run visualization")
                 
         except Exception as e:
@@ -261,9 +255,7 @@ class SimplePushMonitor:
                     timing_ms = None
                     
                     self.visualizer.add_run_statistics(bdr, success, timing_ms)
-                    # Force complete visualization update
-                    self.visualizer.process_events()
-                    self.visualizer.update_display()
+                    # Mark that visualization needs update (don't call from thread)
                     print(f"🎨 Updated BDR visualization")
                 
                 # Clear the bits to avoid recalculating
@@ -317,9 +309,19 @@ class SimplePushMonitor:
         
         try:
             while self.data_server_running:
+                # Update visualization more frequently for smooth updates
+                time.sleep(0.01)
+                
+                # Update visualization in main thread
+                if self.visualizer and self.visualizer.running:
+                    try:
+                        self.visualizer.update_display()
+                    except Exception as e:
+                        print(f"⚠️  Visualization update error: {e}")
+                
                 # Show status every 10 seconds
-                time.sleep(10)
-                self.show_status()
+                if int(time.time()) % 10 == 0:
+                    self.show_status()
                 
         except KeyboardInterrupt:
             print(f"\n🛑 Stopping simple push-only monitor...")
