@@ -21,22 +21,22 @@ python3 demo_control_layer.py --explain
 ### Full Protocol with Hardware
 ```bash
 # Terminal 1 (Bob - Listener)
-python3 control_layer.py --node bob
+python3 control_layer.py --node bob --monitor-ip 192.168.0.142
 
 # Terminal 2 (Alice - Initiator)  
-python3 control_layer.py --node alice
+python3 control_layer.py --node alice --monitor-ip 192.168.0.142
 ```
 
 ### Network Deployment (Multi-Computer)
 ```bash
 # On Bob's machine (with PlutoSDR #2)
-python3 control_layer.py --node bob --peer-host alice_ip_address
+python3 control_layer.py --node bob --peer-host alice_ip_address --monitor-ip monitor_ip_address
 
 # On Alice's machine (with PlutoSDR #1)
-python3 control_layer.py --node alice --peer-host bob_ip_address
+python3 control_layer.py --node alice --peer-host bob_ip_address --monitor-ip monitor_ip_address
 
 # On visualization machine
-python3 network_demo.py --alice-host alice_ip --bob-host bob_ip
+python3 protocol_monitor.py --alice-ip alice_ip --bob-ip bob_ip
 ```
 
 📖 **For detailed distributed setup:** See [NETWORK_DEPLOYMENT.md](NETWORK_DEPLOYMENT.md)

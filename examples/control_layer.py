@@ -861,10 +861,11 @@ class PhysecNode:
     def connect_to_monitor_data_server(self):
         """Connect to the monitor's data collection server"""
         try:
-            # Try to connect to the monitor's data collection server
-            # We'll assume the monitor is running on the same network
-            # and try common IPs
-            potential_monitor_ips = ['192.168.0.142', '192.168.0.1', 'localhost']
+            # Use the provided monitor IP if available, otherwise try common IPs
+            if hasattr(self, 'monitor_ip') and self.monitor_ip:
+                potential_monitor_ips = [self.monitor_ip]
+            else:
+                potential_monitor_ips = ['192.168.0.142', '192.168.0.1', 'localhost']
             
             for monitor_ip in potential_monitor_ips:
                 try:
@@ -1135,8 +1136,8 @@ class Alice(PhysecNode):
 class Bob(PhysecNode):
     """Bob node implementation"""
     
-    def __init__(self, listen_port=8002, peer_host='localhost', peer_port=8001):
-        super().__init__("Bob", listen_port, peer_host, peer_port)
+    def __init__(self, listen_port=8002, peer_host='localhost', peer_port=8001, monitor_ip=None):
+        super().__init__("Bob", listen_port, peer_host, peer_port, monitor_ip=monitor_ip)
         self.state = "idle"
         self.run_count = 0
         self.current_run_number = 0
@@ -1352,12 +1353,14 @@ def main():
                        help='Number of protocol runs to execute (default: 1)')
     parser.add_argument('--delay', type=float, default=2.0,
                        help='Delay between runs in seconds (default: 2.0)')
+    parser.add_argument('--monitor-ip', default='192.168.0.142',
+                       help='Monitor IP address for data pushing (default: 192.168.0.142)')
     
     args = parser.parse_args()
     
     try:
         if args.node == 'alice':
-            node = Alice(peer_host=args.peer_host)
+            node = Alice(peer_host=args.peer_host, monitor_ip=args.monitor_ip)
             
             # Start server in background
             server_thread = threading.Thread(target=node.start_server)
@@ -1474,7 +1477,7 @@ def main():
             logger.info("=" * 60)
             
         elif args.node == 'bob':
-            node = Bob(peer_host=args.peer_host)
+            node = Bob(peer_host=args.peer_host, monitor_ip=args.monitor_ip)
             node.expected_runs = args.runs  # Store expected runs
             
             # Start server and wait for connections
