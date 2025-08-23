@@ -39,12 +39,13 @@ logger = logging.getLogger(__name__)
 class PhysecNode:
     """Base class for PHYSEC nodes (Alice/Bob)"""
     
-    def __init__(self, node_name, listen_port, peer_host, peer_port, sdr_uri="ip:192.168.2.1"):
+    def __init__(self, node_name, listen_port, peer_host, peer_port, sdr_uri="ip:192.168.2.1", monitor_ip=None):
         self.node_name = node_name
         self.listen_port = listen_port
         self.peer_host = peer_host
         self.peer_port = peer_port
         self.sdr_uri = sdr_uri
+        self.monitor_ip = monitor_ip  # Store the provided monitor IP
         
         # SDR parameters
         self.sample_rate = 1000000
@@ -93,13 +94,16 @@ class PhysecNode:
         
         # Monitor connection for pushing data
         self.monitor_connection = None
-        self.monitor_ip = None  # Will be set when monitor connects
         self.monitor_data_port = 9999  # Port for pushing data to monitor
         
         # Pre-initialize flowgraphs for reuse
         self._initialize_flowgraphs()
         
         logger.info(f"Initialized {node_name} node - Listen: {listen_port}, Peer: {peer_host}:{peer_port}")
+        if monitor_ip:
+            logger.info(f"📡 Monitor IP configured: {monitor_ip}")
+        else:
+            logger.info(f"📡 No monitor IP specified - will try to auto-discover")
 
     def _initialize_flowgraphs(self):
         """Pre-initialize all flowgraphs for reuse"""
@@ -794,7 +798,9 @@ class PhysecNode:
         """Automatically push data to the monitor when available"""
         # Try to connect if not already connected
         if not self.monitor_connection:
+            logger.info(f"{self.node_name} attempting to connect to monitor for data push...")
             if not self.connect_to_monitor_data_server():
+                logger.warning(f"{self.node_name} failed to connect to monitor, skipping data push")
                 return  # Can't push data if we can't connect
         
         if self.monitor_connection and self.monitor_ip:
@@ -862,10 +868,12 @@ class PhysecNode:
         """Connect to the monitor's data collection server"""
         try:
             # Use the provided monitor IP if available, otherwise try common IPs
-            if hasattr(self, 'monitor_ip') and self.monitor_ip:
+            if self.monitor_ip:
                 potential_monitor_ips = [self.monitor_ip]
+                logger.info(f"{self.node_name} trying to connect to specified monitor IP: {self.monitor_ip}")
             else:
                 potential_monitor_ips = ['192.168.0.142', '192.168.0.1', 'localhost']
+                logger.info(f"{self.node_name} no monitor IP specified, trying common IPs")
             
             for monitor_ip in potential_monitor_ips:
                 try:
@@ -957,8 +965,8 @@ class PhysecNode:
 class Alice(PhysecNode):
     """Alice node implementation"""
     
-    def __init__(self, listen_port=8001, peer_host='localhost', peer_port=8002):
-        super().__init__("Alice", listen_port, peer_host, peer_port)
+    def __init__(self, listen_port=8001, peer_host='localhost', peer_port=8002, monitor_ip=None):
+        super().__init__("Alice", listen_port, peer_host, peer_port, monitor_ip=monitor_ip)
         self.state = "idle"
         self.run_ack_received = False
         self.run_count = 0
