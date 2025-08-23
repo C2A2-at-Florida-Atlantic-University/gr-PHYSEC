@@ -548,24 +548,32 @@ class PhysecNode:
             self.physec_processor.start()
             self.physec_processor.wait()
             
-            # Read quantized bits
+                        # Read quantized bits
             # Use modular flowgraph methods
+            logger.info(f"{self.node_name} attempting to extract quantized bits from PHYSEC processor...")
             self.quantized_bits = self.physec_processor.get_quantized_bits()
             self.spectrogram_data = self.physec_processor.get_spectrogram_data()
             
+            logger.info(f"{self.node_name} PHYSEC processor returned: quantized_bits={type(self.quantized_bits)}, spectrogram={type(self.spectrogram_data)}")
+            
             if self.quantized_bits:
                 logger.info(f"{self.node_name} extracted {len(self.quantized_bits)} quantized bits")
+                logger.info(f"{self.node_name} quantized bits sample: {self.quantized_bits[:10] if len(self.quantized_bits) > 10 else self.quantized_bits}")
                 
-                            # Log that quantized bits are ready for BDR calculation
-            self.log_quantized_bits_ready()
-            
-            # Log that quantized bits are ready for monitor
-            logger.info(f"📤 {self.node_name} quantized bits ready for monitor: {len(self.quantized_bits)} bytes")
-            
-            # Ensure monitor connection is still active
-            if not self.monitor_connection:
-                logger.warning(f"{self.node_name} monitor connection lost, attempting to reconnect...")
-                self.connect_to_monitor_data_server()
+                # Log that quantized bits are ready for BDR calculation
+                logger.info(f"{self.node_name} calling log_quantized_bits_ready()...")
+                self.log_quantized_bits_ready()
+                
+                # Log that quantized bits are ready for monitor
+                logger.info(f"📤 {self.node_name} quantized bits ready for monitor: {len(self.quantized_bits)} bytes")
+                
+                # Ensure monitor connection is still active
+                if not self.monitor_connection:
+                    logger.warning(f"{self.node_name} monitor connection lost, attempting to reconnect...")
+                    self.connect_to_monitor_data_server()
+            else:
+                logger.error(f"{self.node_name} NO quantized bits extracted from PHYSEC processor!")
+                logger.error(f"{self.node_name} PHYSEC processor state: {self.physec_processor}")
                 
             if self.spectrogram_data is not None:
                 logger.info(f"{self.node_name} processed spectrogram data with shape {self.spectrogram_data.shape}")
@@ -923,15 +931,25 @@ class PhysecNode:
     
     def log_quantized_bits_ready(self):
         """Log that quantized bits are ready for BDR calculation"""
+        logger.info(f"{self.node_name} log_quantized_bits_ready() called")
+        logger.info(f"{self.node_name} self.quantized_bits: {type(self.quantized_bits)}, value: {self.quantized_bits}")
+        
         if self.quantized_bits is not None:
             logger.info(f"{self.node_name} quantized bits ready ({len(self.quantized_bits)} bytes) for BDR calculation")
             # Convert bytes to string representation for JSON serialization
             if isinstance(self.quantized_bits, bytes):
                 quantized_str = str(list(self.quantized_bits))
+                logger.info(f"{self.node_name} converted bytes to string: {len(quantized_str)} chars")
             else:
                 quantized_str = str(self.quantized_bits)
+                logger.info(f"{self.node_name} converted to string: {len(quantized_str)} chars")
+            
+            logger.info(f"{self.node_name} about to push quantized bits to monitor...")
             # Push quantized bits to monitor
             self.push_data_to_monitor("quantized_bits", quantized_str)
+            logger.info(f"{self.node_name} finished pushing quantized bits to monitor")
+        else:
+            logger.error(f"{self.node_name} log_quantized_bits_ready() called but self.quantized_bits is None!")
     
     def update_statistics(self, other_node):
         """Update running statistics from this protocol run (legacy method)"""

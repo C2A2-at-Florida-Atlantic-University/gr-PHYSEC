@@ -63,14 +63,17 @@ class PhysecProcessor(gr.top_block):
             self.fft_window, 
             self.vector_size
         )
+        print(f"🔧 Created PHYSEC spectrogram block: {self.spectrogram_block}")
         
         # PHYSEC Feature Extraction Block
         self.feature_extraction_block = PHYSEC.feature_extraction_block(
             self.model_path
         )
+        print(f"🔧 Created PHYSEC feature extraction block: {self.feature_extraction_block}")
         
         # PHYSEC Quantization Block
         self.quantization_block = PHYSEC.feature_quantization_block('mean_threshold')
+        print(f"🔧 Created PHYSEC quantization block: {self.quantization_block}")
         
         # Vector to Stream converter for spectrogram
         # The spectrogram block output is 204*31 = 6324 floats  
@@ -86,9 +89,11 @@ class PhysecProcessor(gr.top_block):
             self.temp_filename,
             False
         )
+        print(f"🔧 Created file sink: {self.file_sink}, output file: {self.temp_filename}")
         
         # Vector sink for spectrogram data (for visualization)
         self.spectrogram_sink = blocks.vector_sink_f()
+        print(f"🔧 Created spectrogram sink: {self.spectrogram_sink}")
         
         # Connections
         self.connect((self.vector_source, 0), (self.stream_to_vector, 0))
@@ -111,25 +116,35 @@ class PhysecProcessor(gr.top_block):
         import os
         import time
         
+        print(f"🔍 get_quantized_bits() called, temp file: {self.temp_filename}")
+        
         # Wait a bit for file to be written
         time.sleep(0.1)
         
         try:
             # Check if file exists and has data
             if not os.path.exists(self.temp_filename):
-                print(f"Error: Quantized bits file does not exist: {self.temp_filename}")
+                print(f"❌ Error: Quantized bits file does not exist: {self.temp_filename}")
+                print(f"   Current working directory: {os.getcwd()}")
+                print(f"   Directory contents: {os.listdir('.')}")
                 return None
                 
             file_size = os.path.getsize(self.temp_filename)
+            print(f"📁 Quantized bits file exists, size: {file_size} bytes")
+            
             if file_size == 0:
-                print(f"Error: Quantized bits file is empty: {self.temp_filename}")
+                print(f"❌ Error: Quantized bits file is empty: {self.temp_filename}")
                 return None
                 
             with open(self.temp_filename, 'rb') as f:
                 data = f.read()
+                print(f"✅ Successfully read {len(data)} bytes from quantized bits file")
+                print(f"   First 10 bytes: {data[:10] if len(data) > 10 else data}")
                 return data
         except Exception as e:
-            print(f"Error reading quantized bits: {e}")
+            print(f"❌ Error reading quantized bits: {e}")
+            import traceback
+            traceback.print_exc()
             return None
             
     def get_spectrogram_data(self, expected_size=6324):
