@@ -53,6 +53,27 @@ class EnhancedProtocolMonitor:
         self.alice_spectrogram_available = False
         self.bob_spectrogram_available = False
         
+        # Statistics tracking
+        self.alice_latest_bdr = None
+        self.alice_latest_success = None
+        self.alice_latest_timing_ms = None
+        self.alice_total_runs = 0
+        self.alice_successful_runs = 0
+        
+        self.bob_latest_bdr = None
+        self.bob_latest_success = None
+        self.bob_latest_timing_ms = None
+        self.bob_total_runs = 0
+        self.bob_successful_runs = 0
+        
+        # Quantized bits status tracking
+        self.alice_has_quantized_bits = False
+        self.bob_has_quantized_bits = False
+        
+        # Quantized bits data storage for BDR calculation
+        self.alice_quantized_bits = None
+        self.bob_quantized_bits = None
+        
         self.running = True
         
         print(f"🔧 Starting Enhanced PHYSEC Protocol Monitor...")
@@ -98,24 +119,53 @@ class EnhancedProtocolMonitor:
         """Request specific data from a node"""
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(5)  # Longer timeout for data requests
+            sock.settimeout(10)  # Longer timeout for data requests
             sock.connect((ip, port))
             
             # Send data request
             request = {"type": f"{data_type}_request"}
-            sock.send(json.dumps(request).encode('utf-8') + b'\n')
+            request_str = json.dumps(request) + '\n'
+            sock.send(request_str.encode('utf-8'))
             
-            # Get response
-            data = sock.recv(8192)  # Larger buffer for data
+            # Get response - handle large data properly
+            response_data = b""
+            sock.settimeout(2)  # Shorter timeout for reading
+            
+            while True:
+                try:
+                    chunk = sock.recv(4096)
+                    if not chunk:
+                        break
+                    response_data += chunk
+                    
+                    # Check if we have a complete JSON response (ends with newline)
+                    if b'\n' in response_data:
+                        break
+                        
+                except socket.timeout:
+                    # If we got some data and it looks complete, break
+                    if response_data and b'\n' in response_data:
+                        break
+                    break
+            
             sock.close()
             
-            if data:
-                response = json.loads(data.decode('utf-8').strip())
-                return response
+            if response_data:
+                # Find the complete JSON response (up to newline)
+                if b'\n' in response_data:
+                    response_data = response_data.split(b'\n')[0]
+                
+                try:
+                    response = json.loads(response_data.decode('utf-8').strip())
+                    return response
+                except json.JSONDecodeError as e:
+                    print(f"❌ JSON decode error from {node_name}: {e}")
+                    return {"error": f"json_decode_failed: {str(e)}"}
             else:
                 return {"error": "no_data_response"}
                 
         except Exception as e:
+            print(f"❌ Error requesting {data_type} from {node_name}: {e}")
             return {"error": f"data_request_failed: {str(e)}"}
 
     def update_visualization(self):
@@ -140,12 +190,10 @@ class EnhancedProtocolMonitor:
                 # Update IQ data if available
                 if iq_data is not None:
                     self.visualizer.update_iq_data(node_name, iq_data)
-                    print(f"📊 Updated {node_name} IQ data visualization")
                 
                 # Update spectrogram if available
                 if spectrogram_data is not None:
                     self.visualizer.update_spectrogram(node_name, spectrogram_data)
-                    print(f"📊 Updated {node_name} spectrogram visualization")
                 
                 # Force visualization update
                 self.visualizer.process_events()
@@ -153,6 +201,58 @@ class EnhancedProtocolMonitor:
                 
             except Exception as e:
                 print(f"⚠️  Data visualization update error: {e}")
+                
+    def calculate_bdr_if_ready(self):
+        """Calculate BDR when both nodes have quantized bits"""
+        if (self.alice_quantized_bits is not None and 
+            self.bob_quantized_bits is not None):
+            
+            try:
+                # Convert bytes to numpy arrays
+                alice_bits = np.frombuffer(self.alice_quantized_bits, dtype=np.uint8)
+                bob_bits = np.frombuffer(self.bob_quantized_bits, dtype=np.uint8)
+                
+                # Calculate BDR
+                min_len = min(len(alice_bits), len(bob_bits))
+                bdr = np.mean(alice_bits[:min_len] != bob_bits[:min_len])
+                
+                print(f"🎯 BDR Calculated: {bdr:.4f} (Alice: {len(alice_bits)} bits, Bob: {len(bob_bits)} bits)")
+                
+                # Update visualization with calculated BDR
+                if self.visualizer:
+                    # Use a placeholder success value (will be updated when reconciliation completes)
+                    success = True  # Placeholder - will be updated with real reconciliation result
+                    timing_ms = None  # Placeholder - will be updated with real timing
+                    
+                    self.visualizer.add_run_statistics(bdr, success, timing_ms)
+                    self.visualizer.process_events()
+                    self.visualizer.update_display()
+                
+                # Clear the bits to avoid recalculating
+                self.alice_quantized_bits = None
+                self.bob_quantized_bits = None
+                
+            except Exception as e:
+                print(f"❌ Error calculating BDR: {e}")
+    
+    def update_visualization_statistics(self):
+        """Update visualization with collected statistics"""
+        if self.visualizer:
+            try:
+                # Update with latest statistics from both nodes
+                if self.alice_latest_bdr is not None and self.alice_latest_success is not None:
+                    self.visualizer.add_run_statistics(
+                        self.alice_latest_bdr, 
+                        self.alice_latest_success, 
+                        self.alice_latest_timing_ms
+                    )
+                
+                # Force visualization update
+                self.visualizer.process_events()
+                self.visualizer.update_display()
+                
+            except Exception as e:
+                print(f"⚠️  Statistics visualization update error: {e}")
 
     def show_status(self):
         """Display current status with data availability"""
@@ -175,6 +275,25 @@ class EnhancedProtocolMonitor:
         print(f"   Alice Spectrogram: {'✅ Available' if self.alice_spectrogram_available else '❌ Not available'}")
         print(f"   Bob IQ Samples: {'✅ Available' if self.bob_iq_available else '❌ Not available'}")
         print(f"   Bob Spectrogram: {'✅ Available' if self.bob_spectrogram_available else '❌ Not available'}")
+        
+        print(f"\n📈 Statistics:")
+        print(f"   Alice - BDR: {self.alice_latest_bdr:.4f}" if self.alice_latest_bdr is not None else "   Alice - BDR: N/A")
+        print(f"   Alice - Success: {'✅' if self.alice_latest_success else '❌'}" if self.alice_latest_success is not None else "   Alice - Success: N/A")
+        print(f"   Alice - Timing: {self.alice_latest_timing_ms:.0f}ms" if self.alice_latest_timing_ms is not None else "   Alice - Timing: N/A")
+        print(f"   Alice - Runs: {self.alice_successful_runs}/{self.alice_total_runs}")
+        
+        print(f"   Bob - BDR: {self.bob_latest_bdr:.4f}" if self.bob_latest_bdr is not None else "   Bob - BDR: N/A")
+        print(f"   Bob - Success: {'✅' if self.bob_latest_success else '❌'}" if self.bob_latest_success is not None else "   Bob - Success: N/A")
+        print(f"   Bob - Timing: {self.bob_latest_timing_ms:.0f}ms" if self.bob_latest_timing_ms is not None else "   Bob - Timing: N/A")
+        print(f"   Bob - Runs: {self.bob_successful_runs}/{self.bob_total_runs}")
+        
+        print(f"\n🔍 Quantized Bits Status:")
+        print(f"   Alice: {'✅ Has bits' if self.alice_has_quantized_bits else '❌ No bits'}")
+        print(f"   Bob:   {'✅ Has bits' if self.bob_has_quantized_bits else '❌ No bits'}")
+        if self.alice_quantized_bits is not None:
+            print(f"   📊 Alice bits loaded: {len(self.alice_quantized_bits)} bytes")
+        if self.bob_quantized_bits is not None:
+            print(f"   📊 Bob bits loaded: {len(self.bob_quantized_bits)} bytes")
         
         print(f"\n🎯 Protocol Progress:")
         if self.alice_protocol_step == "Probe TX" and self.bob_protocol_step == "Probe TX":
@@ -207,6 +326,16 @@ class EnhancedProtocolMonitor:
             self.alice_iq_available = response.get("iq_samples_available", False)
             self.alice_spectrogram_available = response.get("spectrogram_available", False)
             
+            # Collect statistics
+            self.alice_latest_bdr = response.get("latest_bdr")
+            self.alice_latest_success = response.get("latest_success")
+            self.alice_latest_timing_ms = response.get("latest_timing_ms")
+            self.alice_total_runs = response.get("total_runs", 0)
+            self.alice_successful_runs = response.get("successful_runs", 0)
+            
+            # Collect quantized bits status
+            self.alice_has_quantized_bits = response.get("quantized_bits_available", False)
+            
             if "run_number" in response:
                 self.current_run = response["run_number"]
             
@@ -216,26 +345,53 @@ class EnhancedProtocolMonitor:
             iq_changed = self.alice_iq_available != old_iq
             spec_changed = self.alice_spectrogram_available != old_spec
             
+            # Track old statistics for change detection
+            old_bdr = self.alice_latest_bdr
+            old_success = self.alice_latest_success
+            old_timing = self.alice_latest_timing_ms
+            
             if state_changed or step_changed:
                 print(f"🔄 Alice: {old_state}→{self.alice_state}, {old_step}→{self.alice_protocol_step}")
                 self.update_visualization()
             
             # Request data if newly available
             if iq_changed and self.alice_iq_available:
-                print(f"📊 Alice IQ samples newly available, requesting data...")
                 iq_response = self.request_data_from_node(self.alice_ip, self.alice_port, "Alice", "iq_samples")
                 if "iq_samples" in iq_response:
-                    # Convert string representation back to numpy array
-                    iq_data = np.array(eval(iq_response["iq_samples"]), dtype=np.complex64)
-                    self.update_visualization_with_data("Alice", iq_data=iq_data)
+                    try:
+                        # Convert string representation back to numpy array
+                        iq_data = np.array(eval(iq_response["iq_samples"]), dtype=np.complex64)
+                        self.update_visualization_with_data("Alice", iq_data=iq_data)
+                    except Exception as e:
+                        print(f"❌ Error processing Alice IQ data: {e}")
+                elif "error" in iq_response:
+                    print(f"❌ Alice IQ data request failed: {iq_response['error']}")
             
             if spec_changed and self.alice_spectrogram_available:
-                print(f"📊 Alice spectrogram newly available, requesting data...")
                 spec_response = self.request_data_from_node(self.alice_ip, self.alice_port, "Alice", "spectrogram")
                 if "spectrogram_data" in spec_response:
-                    # Convert string representation back to numpy array
-                    spec_data = np.array(eval(spec_response["spectrogram_data"]), dtype=np.float32)
-                    self.update_visualization_with_data("Alice", spectrogram_data=spec_data)
+                    try:
+                        # Convert string representation back to numpy array
+                        spec_data = np.array(eval(spec_response["spectrogram_data"]), dtype=np.float32)
+                        self.update_visualization_with_data("Alice", spectrogram_data=spec_data)
+                    except Exception as e:
+                        print(f"❌ Error processing Alice spectrogram data: {e}")
+                elif "error" in spec_response:
+                    print(f"❌ Alice spectrogram data request failed: {spec_response['error']}")
+            
+            # Request quantized bits if newly available
+            if self.alice_has_quantized_bits and self.alice_quantized_bits is None:
+                qb_response = self.request_data_from_node(self.alice_ip, self.alice_port, "Alice", "quantized_bits")
+                if "quantized_bits" in qb_response:
+                    try:
+                        # Convert string representation back to bytes
+                        qb_data = bytes(qb_response["quantized_bits"])
+                        self.alice_quantized_bits = qb_data
+                        print(f"✅ Alice quantized bits received: {len(qb_data)} bytes")
+                    except Exception as e:
+                        print(f"❌ Error processing Alice quantized bits: {e}")
+                elif "error" in qb_response:
+                    print(f"❌ Alice quantized bits request failed: {qb_response['error']}")
                 
         except Exception as e:
             print(f"❌ Error monitoring Alice: {e}")
@@ -253,6 +409,16 @@ class EnhancedProtocolMonitor:
             self.bob_iq_available = response.get("iq_samples_available", False)
             self.bob_spectrogram_available = response.get("spectrogram_available", False)
             
+            # Collect statistics
+            self.bob_latest_bdr = response.get("latest_bdr")
+            self.bob_latest_success = response.get("latest_success")
+            self.bob_latest_timing_ms = response.get("latest_timing_ms")
+            self.bob_total_runs = response.get("total_runs", 0)
+            self.bob_successful_runs = response.get("successful_runs", 0)
+            
+            # Collect quantized bits status
+            self.bob_has_quantized_bits = response.get("quantized_bits_available", False)
+            
             if "run_number" in response:
                 self.current_run = response["run_number"]
             
@@ -262,29 +428,65 @@ class EnhancedProtocolMonitor:
             iq_changed = self.bob_iq_available != old_iq
             spec_changed = self.bob_spectrogram_available != old_spec
             
+            # Track old statistics for change detection
+            old_bdr = self.bob_latest_bdr
+            old_success = self.bob_latest_success
+            old_timing = self.bob_latest_timing_ms
+            
             if state_changed or step_changed:
                 print(f"🔄 Bob: {old_state}→{self.bob_state}, {old_step}→{self.bob_protocol_step}")
                 self.update_visualization()
             
             # Request data if newly available
             if iq_changed and self.bob_iq_available:
-                print(f"📊 Bob IQ samples newly available, requesting data...")
                 iq_response = self.request_data_from_node(self.bob_ip, self.bob_port, "Bob", "iq_samples")
                 if "iq_samples" in iq_response:
-                    # Convert string representation back to numpy array
-                    iq_data = np.array(eval(iq_response["iq_samples"]), dtype=np.complex64)
-                    self.update_visualization_with_data("Bob", iq_data=iq_data)
+                    try:
+                        # Convert string representation back to numpy array
+                        iq_data = np.array(eval(iq_response["iq_samples"]), dtype=np.complex64)
+                        self.update_visualization_with_data("Bob", iq_data=iq_data)
+                    except Exception as e:
+                        print(f"❌ Error processing Bob IQ data: {e}")
+                elif "error" in iq_response:
+                    print(f"❌ Bob IQ data request failed: {iq_response['error']}")
             
             if spec_changed and self.bob_spectrogram_available:
-                print(f"📊 Bob spectrogram newly available, requesting data...")
                 spec_response = self.request_data_from_node(self.bob_ip, self.bob_port, "Bob", "spectrogram")
                 if "spectrogram_data" in spec_response:
-                    # Convert string representation back to numpy array
-                    spec_data = np.array(eval(spec_response["spectrogram_data"]), dtype=np.float32)
-                    self.update_visualization_with_data("Bob", spectrogram_data=spec_data)
+                    try:
+                        # Convert string representation back to numpy array
+                        spec_data = np.array(eval(spec_response["spectrogram_data"]), dtype=np.float32)
+                        self.update_visualization_with_data("Bob", spectrogram_data=spec_data)
+                    except Exception as e:
+                        print(f"❌ Error processing Bob spectrogram data: {e}")
+                elif "error" in spec_response:
+                    print(f"❌ Bob spectrogram data request failed: {spec_response['error']}")
+            
+            # Request quantized bits if newly available
+            if self.bob_has_quantized_bits and self.bob_quantized_bits is None:
+                qb_response = self.request_data_from_node(self.bob_ip, self.bob_port, "Bob", "quantized_bits")
+                if "quantized_bits" in qb_response:
+                    try:
+                        # Convert string representation back to bytes
+                        qb_data = bytes(qb_response["quantized_bits"])
+                        self.bob_quantized_bits = qb_data
+                        print(f"✅ Bob quantized bits received: {len(qb_data)} bytes")
+                    except Exception as e:
+                        print(f"❌ Error processing Bob quantized bits: {e}")
+                elif "error" in qb_response:
+                    print(f"❌ Bob quantized bits request failed: {qb_response['error']}")
                 
         except Exception as e:
             print(f"❌ Error monitoring Bob: {e}")
+        
+        # Calculate BDR if both nodes have quantized bits
+        self.calculate_bdr_if_ready()
+        
+        # Update visualization with any new statistics
+        try:
+            self.update_visualization_statistics()
+        except Exception as e:
+            print(f"⚠️  Statistics update error: {e}")
 
     def start_monitoring(self):
         """Start enhanced monitoring loop"""

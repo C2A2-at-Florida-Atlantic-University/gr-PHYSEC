@@ -180,16 +180,20 @@ class PhysecDynamicVisualizer:
         with self.lock:
             if node.lower() == 'alice':
                 self.alice_iq_data = iq_samples
+                print(f"📊 Updated Alice IQ data: {type(iq_samples)}, shape: {iq_samples.shape if hasattr(iq_samples, 'shape') else 'N/A'}")
             elif node.lower() == 'bob':
                 self.bob_iq_data = iq_samples
+                print(f"📊 Updated Bob IQ data: {type(iq_samples)}, shape: {iq_samples.shape if hasattr(iq_samples, 'shape') else 'N/A'}")
                 
     def update_spectrogram(self, node, spectrogram_data):
         """Update spectrogram data for a node"""
         with self.lock:
             if node.lower() == 'alice':
                 self.alice_spectrogram = spectrogram_data
+                print(f"📊 Updated Alice spectrogram: {type(spectrogram_data)}, shape: {spectrogram_data.shape if hasattr(spectrogram_data, 'shape') else 'N/A'}")
             elif node.lower() == 'bob':
                 self.bob_spectrogram = spectrogram_data
+                print(f"📊 Updated Bob spectrogram: {type(spectrogram_data)}, shape: {spectrogram_data.shape if hasattr(spectrogram_data, 'shape') else 'N/A'}")
                 
     def add_run_statistics(self, bdr, success, timing_ms=None):
         """Add statistics for a completed run"""
@@ -205,10 +209,21 @@ class PhysecDynamicVisualizer:
         with self.lock:
             self.alice_step = "Idle"
             self.bob_step = "Idle"
-            self.alice_iq_data = None
-            self.bob_iq_data = None
-            self.alice_spectrogram = None
-            self.bob_spectrogram = None
+            # Keep IQ and spectrogram data until new data arrives
+            # self.alice_iq_data = None
+            # self.bob_iq_data = None
+            # self.alice_spectrogram = None
+            # self.bob_spectrogram = None
+            
+    def clear_data(self, node=None):
+        """Clear data for a specific node or all nodes"""
+        with self.lock:
+            if node is None or node.lower() == 'alice':
+                self.alice_iq_data = None
+                self.alice_spectrogram = None
+            if node is None or node.lower() == 'bob':
+                self.bob_iq_data = None
+                self.bob_spectrogram = None
             
     def _animate(self, frame):
         """Animation update function"""
@@ -270,10 +285,22 @@ class PhysecDynamicVisualizer:
                 ax.plot(indices, np.imag(data), 'r-', alpha=0.7, linewidth=0.5, label='Q')
                 ax.legend(loc='upper right', fontsize=8)
                 ax.set_xlim(0, len(data))
-                ax.set_ylim(np.min(data.real) * 1.1, np.max(data.real) * 1.1)
+                
+                # Calculate proper y-limits
+                real_min, real_max = np.min(data.real), np.max(data.real)
+                imag_min, imag_max = np.min(data.imag), np.max(data.imag)
+                y_min = min(real_min, imag_min) * 1.1
+                y_max = max(real_max, imag_max) * 1.1
+                ax.set_ylim(y_min, y_max)
+                
+                # Add data info text
+                info_text = f'Samples: {len(data)}\nMax I: {real_max:.3f}\nMax Q: {imag_max:.3f}'
+                ax.text(0.02, 0.98, info_text, transform=ax.transAxes, 
+                       ha='left', va='top', fontsize=8, bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+                
             else:
-                ax.text(0.5, 0.5, 'No Data', transform=ax.transAxes, 
-                       ha='center', va='center', fontsize=12, alpha=0.7)
+                ax.text(0.5, 0.5, 'No Data Available', transform=ax.transAxes, 
+                       ha='center', va='center', fontsize=12, alpha=0.7, color='red')
                 ax.set_xlim(0, 8192)
                 ax.set_ylim(-2, 2)
                 
@@ -304,9 +331,14 @@ class PhysecDynamicVisualizer:
                               cmap='viridis', interpolation='nearest')
                 # Add colorbar and track it
                 self.colorbars[name] = plt.colorbar(im, ax=ax, fraction=0.035, pad=0.02, shrink=0.8)
+                
+                # Add data info text
+                info_text = f'Shape: {data.shape}\nMin: {np.min(data):.3f}\nMax: {np.max(data):.3f}'
+                ax.text(0.02, 0.98, info_text, transform=ax.transAxes, 
+                       ha='left', va='top', fontsize=8, bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
             else:
-                ax.text(0.5, 0.5, 'No Data', transform=ax.transAxes, 
-                       ha='center', va='center', fontsize=10, alpha=0.7)
+                ax.text(0.5, 0.5, 'No Data Available', transform=ax.transAxes, 
+                       ha='center', va='center', fontsize=10, alpha=0.7, color='red')
                 
     def _update_statistics_display(self):
         """Update statistics plots"""

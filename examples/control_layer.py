@@ -74,6 +74,8 @@ class PhysecNode:
         self.bit_disagreement_history = []
         self.correlation_history = []
         self.reconciliation_success_history = []
+        self.key_generation_start_time = None
+        self.key_generation_timing_history = []
         
         # Active flowgraph tracking for cleanup
         self.active_probe_tx = None
@@ -210,6 +212,15 @@ class PhysecNode:
                         # Determine the actual protocol step based on current state and activities
                         protocol_step = self._get_protocol_step()
                         
+                        # Get latest statistics
+                        latest_bdr = self.bit_disagreement_history[-1] if self.bit_disagreement_history else None
+                        latest_success = self.reconciliation_success_history[-1] if self.reconciliation_success_history else None
+                        latest_timing = self.key_generation_timing_history[-1] if self.key_generation_timing_history else None
+                        
+                        # Add current quantized bits status for debugging
+                        has_quantized_bits = self.quantized_bits is not None
+                        has_peer_quantized_bits = self.peer_quantized_bits is not None
+                        
                         response = {
                             "type": "status_response",
                             "node_name": self.node_name,
@@ -221,6 +232,12 @@ class PhysecNode:
                             "iq_samples_available": self.iq_samples is not None,
                             "spectrogram_available": self.spectrogram_data is not None,
                             "key_available": self.key is not None,
+                            "quantized_bits_available": self.quantized_bits is not None,
+                            "latest_bdr": latest_bdr,
+                            "latest_success": latest_success,
+                            "latest_timing_ms": latest_timing,
+                            "total_runs": len(self.bit_disagreement_history),
+                            "successful_runs": sum(self.reconciliation_success_history),
                             "timestamp": time.time()
                         }
                         client_socket.send(json.dumps(response).encode('utf-8') + b'\n')
@@ -258,6 +275,24 @@ class PhysecNode:
                             response = {
                                 "type": "spectrogram_response",
                                 "error": "No spectrogram data available",
+                                "timestamp": time.time()
+                            }
+                            client_socket.send(json.dumps(response).encode('utf-8') + b'\n')
+                    
+                    elif request_type == 'quantized_bits_request':
+                        # Send quantized bits data
+                        if self.quantized_bits is not None:
+                            response = {
+                                "type": "quantized_bits_response",
+                                "quantized_bits": str(self.quantized_bits.tolist()),  # Convert bytes to string representation
+                                "timestamp": time.time()
+                            }
+                            client_socket.send(json.dumps(response).encode('utf-8') + b'\n')
+                            logger.info(f"{self.node_name} sent quantized bits data to monitor")
+                        else:
+                            response = {
+                                "type": "quantized_bits_response",
+                                "error": "No quantized bits available",
                                 "timestamp": time.time()
                             }
                             client_socket.send(json.dumps(response).encode('utf-8') + b'\n')
@@ -500,6 +535,10 @@ class PhysecNode:
             
             if self.quantized_bits:
                 logger.info(f"{self.node_name} extracted {len(self.quantized_bits)} quantized bits")
+                
+                # Log that quantized bits are ready for BDR calculation
+                self.log_quantized_bits_ready()
+                
             if self.spectrogram_data is not None:
                 logger.info(f"{self.node_name} processed spectrogram data with shape {self.spectrogram_data.shape}")
                 # Update visualization with spectrogram
@@ -723,8 +762,13 @@ class PhysecNode:
                 except Exception as e:
                     logger.warning(f"Error cleaning up {name}: {e}")
 
+    def log_quantized_bits_ready(self):
+        """Log that quantized bits are ready for BDR calculation"""
+        if self.quantized_bits is not None:
+            logger.info(f"{self.node_name} quantized bits ready ({len(self.quantized_bits)} bytes) for BDR calculation")
+    
     def update_statistics(self, other_node):
-        """Update running statistics from this protocol run"""
+        """Update running statistics from this protocol run (legacy method)"""
         if (self.quantized_bits is not None and other_node.quantized_bits is not None):
             # Calculate bit disagreement for this run
             alice_bits = np.frombuffer(self.quantized_bits, dtype=np.uint8)
@@ -784,6 +828,9 @@ class Alice(PhysecNode):
         logger.info("Alice initiating key generation...")
         self.state = "requesting"
         self.update_visualization_step("Key Request")
+        
+        # Start timing for key generation
+        self.key_generation_start_time = time.time()
         
         try:
             # Step 1: Send key generation request
@@ -885,7 +932,14 @@ class Alice(PhysecNode):
                 # Perform privacy amplification
                 if self.perform_privacy_amplification():
                     self.state = "key_ready"
-                    logger.info("Alice key generation completed successfully!")
+                    
+                    # Calculate key generation timing
+                    if self.key_generation_start_time:
+                        duration_ms = (time.time() - self.key_generation_start_time) * 1000
+                        self.key_generation_timing_history.append(duration_ms)
+                        logger.info(f"Alice key generation completed successfully in {duration_ms:.0f}ms!")
+                    else:
+                        logger.info("Alice key generation completed successfully!")
                     
                     # Step 9: Send encrypted test message
                     self.send_encrypted_message("Hello from Alice!")
@@ -960,6 +1014,10 @@ class Bob(PhysecNode):
             self.run_count += 1
             self.current_run_number = self.run_count  # Track current run being processed
             logger.info(f"Bob received key generation request for run #{self.run_count}")
+            
+            # Start timing for key generation
+            self.key_generation_start_time = time.time()
+            
             self.state = "accepted"
             
             # Notify Alice that transmission will start
@@ -1046,7 +1104,14 @@ class Bob(PhysecNode):
                 # Step 8: Perform privacy amplification
                 if self.perform_privacy_amplification():
                     self.state = "key_ready"
-                    logger.info("Bob key generation completed successfully!")
+                    
+                    # Calculate key generation timing
+                    if self.key_generation_start_time:
+                        duration_ms = (time.time() - self.key_generation_start_time) * 1000
+                        self.key_generation_timing_history.append(duration_ms)
+                        logger.info(f"Bob key generation completed successfully in {duration_ms:.0f}ms!")
+                    else:
+                        logger.info("Bob key generation completed successfully!")
                     
                     # Step 9: Send encrypted test message
                     self.send_encrypted_message("Hello from Bob!")
