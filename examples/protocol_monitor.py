@@ -74,6 +74,12 @@ class EnhancedProtocolMonitor:
         self.alice_quantized_bits = None
         self.bob_quantized_bits = None
         
+        # Data storage for visualization
+        self.alice_iq_data = None
+        self.alice_spectrogram_data = None
+        self.bob_iq_data = None
+        self.bob_spectrogram_data = None
+        
         self.running = True
         
         print(f"🔧 Starting Enhanced PHYSEC Protocol Monitor...")
@@ -196,10 +202,20 @@ class EnhancedProtocolMonitor:
                 # Update IQ data if available
                 if iq_data is not None:
                     self.visualizer.update_iq_data(node_name, iq_data)
+                    # Store data locally
+                    if node_name == "Alice":
+                        self.alice_iq_data = iq_data
+                    elif node_name == "Bob":
+                        self.bob_iq_data = iq_data
                 
                 # Update spectrogram if available
                 if spectrogram_data is not None:
                     self.visualizer.update_spectrogram(node_name, spectrogram_data)
+                    # Store data locally
+                    if node_name == "Alice":
+                        self.alice_spectrogram_data = spectrogram_data
+                    elif node_name == "Bob":
+                        self.bob_spectrogram_data = spectrogram_data
                 
                 # Force visualization update
                 self.visualizer.process_events()
@@ -208,6 +224,76 @@ class EnhancedProtocolMonitor:
             except Exception as e:
                 print(f"⚠️  Data visualization update error: {e}")
                 
+    def collect_available_data(self, node_name, ip, port):
+        """Aggressively collect all available data from a node"""
+        try:
+            # Always try to get IQ samples if we don't have them
+            if node_name == "Alice" and self.alice_iq_available and self.alice_iq_data is None:
+                iq_response = self.request_data_from_node(ip, port, node_name, "iq_samples")
+                if "iq_samples" in iq_response:
+                    try:
+                        iq_data = np.array(eval(iq_response["iq_samples"]), dtype=np.complex64)
+                        self.update_visualization_with_data(node_name, iq_data=iq_data)
+                        print(f"✅ {node_name} IQ samples collected: {len(iq_data)} samples")
+                    except Exception as e:
+                        print(f"❌ Error processing {node_name} IQ data: {e}")
+            
+            # Always try to get spectrogram if we don't have it
+            if node_name == "Alice" and self.alice_spectrogram_available and self.alice_spectrogram_data is None:
+                spec_response = self.request_data_from_node(ip, port, node_name, "spectrogram")
+                if "spectrogram_data" in spec_response:
+                    try:
+                        spec_data = np.array(eval(spec_response["spectrogram_data"]), dtype=np.float32)
+                        self.update_visualization_with_data(node_name, spectrogram_data=spec_data)
+                        print(f"✅ {node_name} spectrogram collected: shape {spec_data.shape}")
+                    except Exception as e:
+                        print(f"❌ Error processing {node_name} spectrogram data: {e}")
+            
+            # Always try to get quantized bits if we don't have them
+            if node_name == "Alice" and self.alice_has_quantized_bits and self.alice_quantized_bits is None:
+                qb_response = self.request_data_from_node(ip, port, node_name, "quantized_bits")
+                if "quantized_bits" in qb_response:
+                    try:
+                        qb_data = bytes(qb_response["quantized_bits"])
+                        self.alice_quantized_bits = qb_data
+                        print(f"✅ {node_name} quantized bits collected: {len(qb_data)} bytes")
+                    except Exception as e:
+                        print(f"❌ Error processing {node_name} quantized bits: {e}")
+            
+            # Same for Bob
+            if node_name == "Bob" and self.bob_iq_available and self.bob_iq_data is None:
+                iq_response = self.request_data_from_node(ip, port, node_name, "iq_samples")
+                if "iq_samples" in iq_response:
+                    try:
+                        iq_data = np.array(eval(iq_response["iq_samples"]), dtype=np.complex64)
+                        self.update_visualization_with_data(node_name, iq_data=iq_data)
+                        print(f"✅ {node_name} IQ samples collected: {len(iq_data)} samples")
+                    except Exception as e:
+                        print(f"❌ Error processing {node_name} IQ data: {e}")
+            
+            if node_name == "Bob" and self.bob_spectrogram_available and self.bob_spectrogram_data is None:
+                spec_response = self.request_data_from_node(ip, port, node_name, "spectrogram")
+                if "spectrogram_data" in spec_response:
+                    try:
+                        spec_data = np.array(eval(spec_response["spectrogram_data"]), dtype=np.float32)
+                        self.update_visualization_with_data(node_name, spectrogram_data=spec_data)
+                        print(f"✅ {node_name} spectrogram collected: shape {spec_data.shape}")
+                    except Exception as e:
+                        print(f"❌ Error processing {node_name} spectrogram data: {e}")
+            
+            if node_name == "Bob" and self.bob_has_quantized_bits and self.bob_quantized_bits is None:
+                qb_response = self.request_data_from_node(ip, port, node_name, "quantized_bits")
+                if "quantized_bits" in qb_response:
+                    try:
+                        qb_data = bytes(qb_response["quantized_bits"])
+                        self.bob_quantized_bits = qb_data
+                        print(f"✅ {node_name} quantized bits collected: {len(qb_data)} bytes")
+                    except Exception as e:
+                        print(f"❌ Error processing {node_name} quantized bits: {e}")
+                
+        except Exception as e:
+            print(f"❌ Error collecting data from {node_name}: {e}")
+    
     def calculate_bdr_if_ready(self):
         """Calculate BDR when both nodes have quantized bits"""
         if (self.alice_quantized_bits is not None and 
@@ -398,6 +484,9 @@ class EnhancedProtocolMonitor:
                         print(f"❌ Error processing Alice quantized bits: {e}")
                 elif "error" in qb_response:
                     print(f"❌ Alice quantized bits request failed: {qb_response['error']}")
+            
+            # Always try to collect data if available (more aggressive approach)
+            self.collect_available_data("Alice", self.alice_ip, self.alice_port)
                 
         except Exception as e:
             print(f"❌ Error monitoring Alice: {e}")
@@ -481,6 +570,9 @@ class EnhancedProtocolMonitor:
                         print(f"❌ Error processing Bob quantized bits: {e}")
                 elif "error" in qb_response:
                     print(f"❌ Bob quantized bits request failed: {qb_response['error']}")
+            
+            # Always try to collect data if available (more aggressive approach)
+            self.collect_available_data("Bob", self.bob_ip, self.bob_port)
                 
         except Exception as e:
             print(f"❌ Error monitoring Bob: {e}")

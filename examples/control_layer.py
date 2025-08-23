@@ -488,6 +488,9 @@ class PhysecNode:
                 logger.info(f"{self.node_name} collected {len(self.iq_samples)} samples")
                 # Update visualization with IQ data
                 self.update_visualization_iq(self.iq_samples)
+                
+                # Log that IQ samples are ready for monitor
+                logger.info(f"📤 {self.node_name} IQ samples ready for monitor: {len(self.iq_samples)} samples")
             else:
                 logger.error(f"{self.node_name} failed to collect samples")
                 
@@ -538,10 +541,16 @@ class PhysecNode:
                 # Log that quantized bits are ready for BDR calculation
                 self.log_quantized_bits_ready()
                 
+                # Log that quantized bits are ready for monitor
+                logger.info(f"📤 {self.node_name} quantized bits ready for monitor: {len(self.quantized_bits)} bytes")
+                
             if self.spectrogram_data is not None:
                 logger.info(f"{self.node_name} processed spectrogram data with shape {self.spectrogram_data.shape}")
                 # Update visualization with spectrogram
-                self.update_visualization_spectrogram(self.spectrogram_data)                
+                self.update_visualization_spectrogram(self.spectrogram_data)
+                
+                # Log that spectrogram is ready for monitor
+                logger.info(f"📤 {self.node_name} spectrogram ready for monitor: shape {self.spectrogram_data.shape}")                
         finally:
             # Ensure proper cleanup of GNU Radio flowgraph
             try:
