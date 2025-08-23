@@ -134,15 +134,25 @@ class SimplePushMonitor:
                             except json.JSONDecodeError as e:
                                 print(f"⚠️  JSON decode error from {addr}: {e}")
                                 print(f"   Message data: {message_data[:200]}...")
+                                # Try to find where the JSON might be valid
+                                if b'"type"' in message_data and b'"data_type"' in message_data:
+                                    print(f"   🔍 Message appears to be truncated, waiting for more data...")
                                 continue
                     
                     # Debug: show buffer status
                     if len(buffer) > 0:
                         print(f"📦 Buffer from {addr}: {len(buffer)} bytes waiting for complete message")
+                        # Show more detailed buffer info for large buffers
+                        if len(buffer) > 100000:  # If buffer is very large
+                            print(f"   🔍 Large buffer detected - checking for message structure...")
+                            if b'"type"' in buffer and b'"data_type"' in buffer:
+                                print(f"   ✅ Buffer contains valid message structure, waiting for completion...")
+                            else:
+                                print(f"   ⚠️  Buffer may be corrupted or incomplete")
                         
                 except socket.timeout:
                     # Check if we've been waiting too long for incomplete messages
-                    if len(buffer) > 0 and (time.time() - last_activity) > 10:
+                    if len(buffer) > 0 and (time.time() - last_activity) > 30:  # Increased timeout for large messages
                         print(f"⚠️  Timeout waiting for complete message from {addr}, clearing buffer")
                         print(f"   Buffer content: {buffer[:200]}...")
                         buffer = b""

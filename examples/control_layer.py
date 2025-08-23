@@ -854,9 +854,25 @@ class PhysecNode:
                         "timestamp": time.time()
                     }
                 
-                # Send data to monitor
-                self.monitor_connection.send(json.dumps(message).encode('utf-8') + b'\n')
-                logger.info(f"📤 {self.node_name} pushed {data_type} to monitor")
+                # Send data to monitor - handle large data by chunking
+                message_str = json.dumps(message)
+                message_bytes = message_str.encode('utf-8')
+                
+                if len(message_bytes) > 50000:  # If message is larger than ~50KB
+                    logger.info(f"📤 {self.node_name} chunking large {data_type} message ({len(message_bytes)} bytes)")
+                    # Send in chunks
+                    chunk_size = 32768  # 32KB chunks
+                    for i in range(0, len(message_bytes), chunk_size):
+                        chunk = message_bytes[i:i + chunk_size]
+                        self.monitor_connection.send(chunk)
+                        time.sleep(0.001)  # Small delay between chunks
+                    # Send final newline
+                    self.monitor_connection.send(b'\n')
+                else:
+                    # Send normally for smaller messages
+                    self.monitor_connection.send(message_bytes + b'\n')
+                
+                logger.info(f"📤 {self.node_name} pushed {data_type} to monitor ({len(message_bytes)} bytes)")
                 
             except Exception as e:
                 logger.warning(f"{self.node_name} failed to push {data_type} to monitor: {e}")
