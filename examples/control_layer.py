@@ -171,13 +171,13 @@ class PhysecNode:
             
         except Exception as e:
             logger.error(f"{self.node_name} failed to start monitoring server: {e}")
-            # Fallback: try to bind to localhost only
+            # Fallback: try to bind to all interfaces
             try:
                 self.monitor_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 self.monitor_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                self.monitor_socket.bind(('127.0.0.1', self.monitor_port))
+                self.monitor_socket.bind(('0.0.0.0', self.monitor_port))
                 self.monitor_socket.listen(5)
-                logger.info(f"{self.node_name} monitoring server listening on port {self.monitor_port} (127.0.0.1)")
+                logger.info(f"{self.node_name} monitoring server listening on port {self.monitor_port} (0.0.0.0) - fallback")
                 
                 self.monitor_thread = threading.Thread(target=self._monitor_server_loop, daemon=True)
                 self.monitor_thread.start()
@@ -219,7 +219,6 @@ class PhysecNode:
                         
                         # Add current quantized bits status for debugging
                         has_quantized_bits = self.quantized_bits is not None
-                        has_peer_quantized_bits = self.peer_quantized_bits is not None
                         
                         response = {
                             "type": "status_response",

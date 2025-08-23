@@ -95,23 +95,29 @@ class EnhancedProtocolMonitor:
         """Connect to get node status"""
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(2)  # 2 second timeout
+            sock.settimeout(5)  # 5 second timeout for connection
             sock.connect((ip, port))
             
             # Send status request
             request = {"type": "status_request"}
             sock.send(json.dumps(request).encode('utf-8') + b'\n')
             
-            # Get response
+            # Get response with timeout
+            sock.settimeout(3)  # 3 second timeout for reading
             data = sock.recv(1024)
             sock.close()
             
             if data:
-                response = json.loads(data.decode('utf-8').strip())
-                return response
+                try:
+                    response = json.loads(data.decode('utf-8').strip())
+                    return response
+                except json.JSONDecodeError as e:
+                    return {"state": "json_error", "error": f"Invalid JSON: {str(e)}"}
             else:
                 return {"state": "no_response"}
                 
+        except socket.timeout:
+            return {"state": "timeout", "error": "Connection or read timeout"}
         except Exception as e:
             return {"state": "connection_error", "error": str(e)}
 
