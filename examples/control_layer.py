@@ -883,8 +883,8 @@ class PhysecNode:
                     
                     # Store the connection
                     self.monitor_connection = sock
-                    # Don't override the originally specified monitor IP
-                    if not hasattr(self, 'monitor_ip') or not self.monitor_ip:
+                    # Always preserve the originally specified monitor IP
+                    if not self.monitor_ip:
                         self.monitor_ip = monitor_ip
                     logger.info(f"{self.node_name} connected to monitor data server at {monitor_ip}:{self.monitor_data_port}")
                     return True
@@ -904,13 +904,13 @@ class PhysecNode:
         """Log that quantized bits are ready for BDR calculation"""
         if self.quantized_bits is not None:
             logger.info(f"{self.node_name} quantized bits ready ({len(self.quantized_bits)} bytes) for BDR calculation")
-            # Convert bytes to list for JSON serialization
+            # Convert bytes to string representation for JSON serialization
             if isinstance(self.quantized_bits, bytes):
-                quantized_list = list(self.quantized_bits)
+                quantized_str = str(list(self.quantized_bits))
             else:
-                quantized_list = self.quantized_bits
+                quantized_str = str(self.quantized_bits)
             # Push quantized bits to monitor
-            self.push_data_to_monitor("quantized_bits", quantized_list)
+            self.push_data_to_monitor("quantized_bits", quantized_str)
     
     def update_statistics(self, other_node):
         """Update running statistics from this protocol run (legacy method)"""

@@ -59,6 +59,7 @@ class SimplePushMonitor:
         # Data collection server for receiving pushed data
         self.data_server_socket = None
         self.data_server_running = True
+        self.message_count = 0  # Track total messages received
         
         print(f"🔧 Starting Simple Push-Only PHYSEC Monitor...")
         print(f"📡 Will receive data from Alice: {alice_ip}")
@@ -70,6 +71,8 @@ class SimplePushMonitor:
             print("   • Real-time data visualization")
             print("   • IQ samples and spectrograms")
             print("   • Success rate and timing statistics")
+            print(f"   • Visualizer object: {self.visualizer}")
+            print(f"   • Visualizer running: {self.visualizer.running if self.visualizer else 'N/A'}")
         else:
             print("⚠️  Visualization disabled - text-only monitoring")
         
@@ -100,6 +103,7 @@ class SimplePushMonitor:
     def handle_data_connection(self, client_socket, addr):
         """Handle data connection from a node"""
         try:
+            print(f"🔗 Processing data connection from {addr}")
             while self.data_server_running:
                 data = client_socket.recv(4096)
                 if not data:
@@ -108,8 +112,9 @@ class SimplePushMonitor:
                 try:
                     message = json.loads(data.decode('utf-8').strip())
                     self.process_pushed_data(message, addr)
-                except json.JSONDecodeError:
-                    # Handle partial messages
+                except json.JSONDecodeError as e:
+                    print(f"⚠️  JSON decode error from {addr}: {e}")
+                    print(f"   Raw data: {data[:200]}...")
                     continue
                     
         except Exception as e:
@@ -117,6 +122,7 @@ class SimplePushMonitor:
         finally:
             try:
                 client_socket.close()
+                print(f"🔌 Closed connection from {addr}")
             except:
                 pass
 
@@ -125,44 +131,76 @@ class SimplePushMonitor:
         try:
             msg_type = message.get("type")
             if msg_type == "data_push":
+                self.message_count += 1
                 data_type = message.get("data_type")
                 node_name = message.get("node_name")
                 data = message.get("data")
                 timestamp = message.get("timestamp", time.time())
                 
-                print(f"📥 Received {data_type} from {node_name} at {time.strftime('%H:%M:%S', time.localtime(timestamp))}")
+                print(f"📥 Message #{self.message_count}: Received {data_type} from {node_name} at {time.strftime('%H:%M:%S', time.localtime(timestamp))}")
+                print(f"   📊 Data type: {type(data)}, Size: {len(data) if hasattr(data, '__len__') else 'N/A'}")
+                if isinstance(data, str) and len(data) > 100:
+                    print(f"   📝 Data preview: {data[:100]}...")
+                elif isinstance(data, (list, tuple)) and len(data) > 10:
+                    print(f"   📝 Data preview: {data[:10]}...")
+                else:
+                    print(f"   📝 Data: {data}")
                 
                 if data_type == "iq_samples":
                     # Convert string representation back to numpy array
-                    iq_data = np.array(eval(data), dtype=np.complex64)
-                    if node_name == "Alice":
-                        self.alice_iq_data = iq_data
-                        print(f"✅ Alice IQ samples: {len(iq_data)} samples")
-                    elif node_name == "Bob":
-                        self.bob_iq_data = iq_data
-                        print(f"✅ Bob IQ samples: {len(iq_data)} samples")
-                    
-                    # Update visualization
-                    if self.visualizer:
-                        self.visualizer.update_iq_data(node_name, iq_data)
-                        # Mark that visualization needs update (don't call from thread)
-                        print(f"🎨 Updated {node_name} IQ visualization")
+                    try:
+                        if isinstance(data, str):
+                            iq_data = np.array(eval(data), dtype=np.complex64)
+                        else:
+                            iq_data = np.array(data, dtype=np.complex64)
+                            
+                        if node_name == "Alice":
+                            self.alice_iq_data = iq_data
+                            print(f"✅ Alice IQ samples: {len(iq_data)} samples")
+                        elif node_name == "Bob":
+                            self.bob_iq_data = iq_data
+                            print(f"✅ Bob IQ samples: {len(iq_data)} samples")
+                        
+                        # Update visualization
+                        if self.visualizer:
+                            try:
+                                self.visualizer.update_iq_data(node_name, iq_data)
+                                print(f"🎨 Updated {node_name} IQ visualization - Data shape: {iq_data.shape}")
+                            except Exception as e:
+                                print(f"❌ Failed to update {node_name} IQ visualization: {e}")
+                        else:
+                            print(f"⚠️  No visualizer available for {node_name} IQ data")
+                    except Exception as e:
+                        print(f"❌ Error processing {node_name} IQ samples: {e}")
+                        print(f"   Data type: {type(data)}, Data: {str(data)[:100]}...")
                 
                 elif data_type == "spectrogram":
                     # Convert string representation back to numpy array
-                    spec_data = np.array(eval(data), dtype=np.float32)
-                    if node_name == "Alice":
-                        self.alice_spectrogram_data = spec_data
-                        print(f"✅ Alice spectrogram: shape {spec_data.shape}")
-                    elif node_name == "Bob":
-                        self.bob_spectrogram_data = spec_data
-                        print(f"✅ Bob spectrogram: shape {spec_data.shape}")
-                    
-                    # Update visualization
-                    if self.visualizer:
-                        self.visualizer.update_spectrogram(node_name, spec_data)
-                        # Mark that visualization needs update (don't call from thread)
-                        print(f"🎨 Updated {node_name} spectrogram visualization")
+                    try:
+                        if isinstance(data, str):
+                            spec_data = np.array(eval(data), dtype=np.float32)
+                        else:
+                            spec_data = np.array(data, dtype=np.float32)
+                            
+                        if node_name == "Alice":
+                            self.alice_spectrogram_data = spec_data
+                            print(f"✅ Alice spectrogram: shape {spec_data.shape}")
+                        elif node_name == "Bob":
+                            self.bob_spectrogram_data = spec_data
+                            print(f"✅ Bob spectrogram: shape {spec_data.shape}")
+                        
+                        # Update visualization
+                        if self.visualizer:
+                            try:
+                                self.visualizer.update_spectrogram(node_name, spec_data)
+                                print(f"🎨 Updated {node_name} spectrogram visualization - Data shape: {spec_data.shape}")
+                            except Exception as e:
+                                print(f"❌ Failed to update {node_name} spectrogram visualization: {e}")
+                        else:
+                            print(f"⚠️  No visualizer available for {node_name} spectrogram data")
+                    except Exception as e:
+                        print(f"❌ Error processing {node_name} spectrogram: {e}")
+                        print(f"   Data type: {type(data)}, Data: {str(data)[:100]}...")
                 
                 elif data_type == "quantized_bits":
                     # Convert list back to bytes for BDR calculation
@@ -310,7 +348,7 @@ class SimplePushMonitor:
         try:
             while self.data_server_running:
                 # Update visualization more frequently for smooth updates
-                time.sleep(0.01)
+                time.sleep(0.1)
                 
                 # Update visualization in main thread
                 if self.visualizer and self.visualizer.running:
@@ -319,9 +357,7 @@ class SimplePushMonitor:
                     except Exception as e:
                         print(f"⚠️  Visualization update error: {e}")
                 
-                # Show status every 10 seconds
-                if int(time.time()) % 10 == 0:
-                    self.show_status()
+
                 
         except KeyboardInterrupt:
             print(f"\n🛑 Stopping simple push-only monitor...")
@@ -329,6 +365,15 @@ class SimplePushMonitor:
             self.data_server_running = False
             if self.data_server_socket:
                 self.data_server_socket.close()
+            
+            # Show final summary
+            print(f"\n📊 Final Summary:")
+            print(f"   Total messages received: {self.message_count}")
+            print(f"   Alice IQ data: {'✅' if self.alice_iq_data is not None else '❌'}")
+            print(f"   Alice spectrogram: {'✅' if self.alice_spectrogram_data is not None else '❌'}")
+            print(f"   Bob IQ data: {'✅' if self.bob_iq_data is not None else '❌'}")
+            print(f"   Bob spectrogram: {'✅' if self.bob_spectrogram_data is not None else '❌'}")
+            
             if self.visualizer:
                 try:
                     self.visualizer.stop_visualization()
