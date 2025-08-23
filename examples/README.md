@@ -44,9 +44,10 @@ python3 network_demo.py --alice-host alice_ip --bob-host bob_ip
 ## 📁 Files
 
 ### Core Files
-- **`control_layer.py`** - Main PHYSEC protocol implementation
+- **`control_layer.py`** - Main PHYSEC protocol implementation with automatic data pushing
 - **`demo_control_layer.py`** - Interactive demonstration with dynamic visualization
 - **`dynamic_visualization.py`** - Real-time dashboard for protocol monitoring
+- **`protocol_monitor.py`** - Simple push-only monitoring with real-time data visualization
 - **`network_demo.py`** - Network monitoring for distributed deployment
 
 ### Modular Flowgraphs
@@ -126,6 +127,37 @@ The interactive demo features a **real-time dashboard** that displays:
 - **Multi-run Statistics** - Averages and trends across multiple iterations  
 - **No File Saving** - All visualization in-memory for performance
 - **matplotlib Integration** - Clean, professional plots with legends and annotations
+
+## 📡 **Protocol Monitoring**
+
+The `protocol_monitor.py` script provides **simple, push-only monitoring**:
+
+### **Push-Only Data Collection Strategy**
+- **No Polling**: Monitor only receives data that nodes push automatically
+- **Real-time Updates**: Visualization updates immediately as data arrives
+- **Simple Architecture**: Just one data collection server on port 9999
+
+### **Real-time Data Flow**
+- **IQ Samples**: Pushed immediately after collection (8192 samples)
+- **Spectrograms**: Pushed after PHYSEC processing
+- **Quantized Bits**: Pushed after feature quantization
+- **Statistics**: Pushed after reconciliation (BDR, success, timing)
+
+### **Network Architecture**
+```
+Alice ──push data──→ Monitor (Port 9999) ←──push data── Bob
+```
+
+### **Usage**
+```bash
+# Start monitor (receives only pushed data)
+python3 protocol_monitor.py --alice-ip 192.168.0.5 --bob-ip 192.168.0.2
+
+# Monitor will show:
+# 📥 Real-time data pushes as they arrive
+# 🎨 Immediate visualization updates
+# 📊 Simple status display every 10 seconds
+```
 
 ## 🔐 Security
 

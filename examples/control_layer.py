@@ -129,6 +129,9 @@ class PhysecNode:
         """Update the visualization with current protocol step"""
         if self.visualizer:
             self.visualizer.update_step(self.node_name, step)
+        
+        # Also push protocol step update to monitor
+        self.push_data_to_monitor("protocol_step", {"step": step})
 
     def update_visualization_iq(self, iq_data):
         """Update the visualization with IQ data"""
@@ -717,6 +720,9 @@ class PhysecNode:
         self.transmitting = False  # Reset transmission flag
         self.run_count += 1
         
+        # Push run update to monitor
+        self.push_data_to_monitor("run_update", {"run_number": self.run_count, "action": "started"})
+        
         # Give hardware and GNU Radio blocks time to fully release resources
         # Moderate delay for PlutoSDR to fully disconnect
         time.sleep(3.0)
@@ -821,6 +827,22 @@ class PhysecNode:
                     message = {
                         "type": "data_push",
                         "data_type": "statistics",
+                        "node_name": self.node_name,
+                        "data": data,
+                        "timestamp": time.time()
+                    }
+                elif data_type == "protocol_step":
+                    message = {
+                        "type": "data_push",
+                        "data_type": "protocol_step",
+                        "node_name": self.node_name,
+                        "data": data,
+                        "timestamp": time.time()
+                    }
+                elif data_type == "run_update":
+                    message = {
+                        "type": "data_push",
+                        "data_type": "run_update",
                         "node_name": self.node_name,
                         "data": data,
                         "timestamp": time.time()
