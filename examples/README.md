@@ -166,4 +166,31 @@ python3 protocol_monitor.py --alice-ip 192.168.0.5 --bob-ip 192.168.0.2
 - Error detection and correction via Reed-Solomon codes
 - Privacy amplification removes leaked information
 
+## 🖥️ Headless/GUI tips
+
+- **Install xterm (stabilizes GUI launches in some containers):**
+```bash
+apt-get update && apt-get install -y xterm \
+  && update-alternatives --set x-terminal-emulator /usr/bin/xterm
+```
+
+- **Prefer no-GUI generation for GRC files:**
+  - In both `flowgraphs/alice_node_protocol.grc` and `flowgraphs/bob_node_protocol.grc` set:
+    - `generate_options: no_gui`
+    - `run: 'False'`
+  - Disable any `Qt` GUI sinks/sources and hardware blocks (e.g., `iio_pluto_source`/`iio_pluto_sink`) when testing without SDR.
+  - Add a `blocks_throttle` between your test signal source and the next processing block to avoid CPU congestion.
+
+- **Run GRC-generated scripts offscreen (if GUI blocks remain):**
+```bash
+QT_QPA_PLATFORM=offscreen XDG_RUNTIME_DIR=/tmp/runtime-root \
+python3 /workspace/siwn/gr-PHYSEC/examples/flowgraphs/bob_node_protocol.py
+
+QT_QPA_PLATFORM=offscreen XDG_RUNTIME_DIR=/tmp/runtime-root \
+python3 /workspace/siwn/gr-PHYSEC/examples/flowgraphs/alice_node_protocol.py
+```
+
+- **Reduce I/O during debugging:**
+  - Disable or remove heavy `file_sink` blocks to avoid filesystem overhead and permission issues.
+
 Ready for quantum key generation! 🚀

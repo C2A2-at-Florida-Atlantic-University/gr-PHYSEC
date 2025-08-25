@@ -73,12 +73,24 @@ blocks:
   id: variable
   parameters:
     comment: ZeroMQ address for control in
-    value: '"tcp://127.0.0.1:9001"'
+    value: '"tcp://127.0.0.1:9101"'
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [744, 12]
+    coordinate: [576, 92.0]
+    rotation: 0
+    state: enabled
+- name: peer_ctrl_pub_addr
+  id: variable
+  parameters:
+    comment: ZeroMQ address for control out
+    value: '"tcp://127.0.0.1:9102"'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [800, 76.0]
     rotation: 0
     state: enabled
 - name: sample_rate
@@ -97,7 +109,7 @@ blocks:
   id: variable
   parameters:
     comment: PlutoSDR URI
-    value: '"ip:192.168.2.1"'
+    value: '"ip:192.168.65.254"'
   states:
     bus_sink: false
     bus_source: false
@@ -197,7 +209,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [768, 156.0]
+    coordinate: [760, 172.0]
     rotation: 0
     state: enabled
 - name: analog_sig_source_x_0
@@ -220,6 +232,28 @@ blocks:
     bus_source: false
     bus_structure: null
     coordinate: [96, 416]
+    rotation: 0
+    state: enabled
+- name: analog_sig_source_x_0_0
+  id: analog_sig_source_x
+  parameters:
+    affinity: ''
+    alias: ''
+    amp: '1'
+    comment: Probe signal source
+    freq: '1000000'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    offset: '0'
+    phase: '0'
+    samp_rate: sample_rate
+    type: complex
+    waveform: analog.GR_SIN_WAVE
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [24, 292.0]
     rotation: 0
     state: enabled
 - name: blocks_file_sink_key_0
@@ -257,7 +291,7 @@ blocks:
     bus_structure: null
     coordinate: [736, 260.0]
     rotation: 0
-    state: enabled
+    state: disabled
 - name: blocks_head_0
   id: blocks_head
   parameters:
@@ -273,7 +307,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [320, 176]
+    coordinate: [384, 228.0]
     rotation: 0
     state: enabled
 - name: blocks_message_debug_0
@@ -287,21 +321,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [560, 640]
-    rotation: 0
-    state: enabled
-- name: blocks_message_debug_parity
-  id: blocks_message_debug
-  parameters:
-    affinity: ''
-    alias: ''
-    comment: Parity PDU debug (Bob)
-    en_uvec: 'True'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [1248, 544.0]
+    coordinate: [1104, 768.0]
     rotation: 0
     state: enabled
 - name: blocks_mute_xx_0
@@ -321,6 +341,23 @@ blocks:
     coordinate: [504, 360.0]
     rotation: 0
     state: enabled
+- name: blocks_null_sink_0
+  id: blocks_null_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    bus_structure_sink: '[[0,],]'
+    comment: ''
+    num_inputs: '1'
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [720, 352.0]
+    rotation: 0
+    state: true
 - name: blocks_stream_to_vector_0
   id: blocks_stream_to_vector
   parameters:
@@ -363,35 +400,44 @@ blocks:
     _source_code: "from gnuradio import gr\nimport pmt\n\nclass blk(gr.basic_block):\n\
       \    def __init__(self):\n        gr.basic_block.__init__(self, name='Bob Controller',\
       \ in_sig=None, out_sig=None)\n        self.message_port_register_in(pmt.intern('msg_in'))\n\
-      \        self.message_port_register_out(pmt.intern('tx_mute'))\n        self.message_port_register_out(pmt.intern('out'))\n\
-      \        self.set_msg_handler(pmt.intern('msg_in'), self.handle_ctrl)\n\n  \
-      \  def handle_ctrl(self, msg):\n        try:\n            val = pmt.symbol_to_string(msg)\
-      \ if pmt.is_symbol(msg) else str(pmt.to_python(msg))\n        except Exception:\n\
-      \            val = 'unknown'\n        if 'start_tx' in val:\n            self.message_port_pub(pmt.intern('tx_mute'),\
-      \ pmt.to_pmt(False))\n            self.message_port_pub(pmt.intern('out'), pmt.intern('bob_start_tx'))\n\
-      \        elif 'stop_tx' in val:\n            self.message_port_pub(pmt.intern('tx_mute'),\
-      \ pmt.to_pmt(True))\n            self.message_port_pub(pmt.intern('out'), pmt.intern('bob_stop_tx'))\n\
-      \        elif 'collect' in val:\n            self.message_port_pub(pmt.intern('out'),\
-      \ pmt.intern('bob_collecting'))\n        elif 'parity_recv' in val:\n      \
-      \      self.message_port_pub(pmt.intern('out'), pmt.intern('bob_parity_recv'))\n\
-      \        elif 'reconcile_ok' in val:\n            self.message_port_pub(pmt.intern('out'),\
-      \ pmt.intern('bob_reconcile_ok'))\n        elif 'reconcile_fail' in val:\n \
-      \           self.message_port_pub(pmt.intern('out'), pmt.intern('bob_reconcile_fail'))\n\
-      \        elif 'privacy_done' in val:\n            self.message_port_pub(pmt.intern('out'),\
-      \ pmt.intern('bob_privacy_done'))\n        else:\n            self.message_port_pub(pmt.intern('out'),\
-      \ pmt.intern('bob_unknown'))\n"
+      \        self.message_port_register_in(pmt.intern('evt_in'))\n        self.message_port_register_out(pmt.intern('tx_mute'))\n\
+      \        self.message_port_register_out(pmt.intern('out'))\n        self.message_port_register_out(pmt.intern('peer'))\n\
+      \        self.message_port_register_out(pmt.intern('rx_ctrl'))\n        self.set_msg_handler(pmt.intern('msg_in'),\
+      \ self.handle_msg)\n        self.set_msg_handler(pmt.intern('evt_in'), self.handle_evt)\n\
+      \        self.message_port_pub(pmt.intern('tx_mute'), pmt.to_pmt(True))\n  \
+      \      self.state = 'idle'\n    def handle_msg(self, msg):\n        val = pmt.symbol_to_string(msg)\
+      \ if pmt.is_symbol(msg) else str(pmt.to_python(msg))\n        if val == 'start'\
+      \ and self.state == 'idle':\n            self.message_port_pub(pmt.intern('peer'),\
+      \ pmt.intern('probe_req'))\n            self.message_port_pub(pmt.intern('tx_mute'),\
+      \ pmt.to_pmt(False))\n            self.message_port_pub(pmt.intern('out'), pmt.intern('bob_tx_start'))\n\
+      \            self.state = 'txing'\n        elif val == 'alice_tx_start' and\
+      \ self.state in ('txing','tx_done'):\n            self.message_port_pub(pmt.intern('rx_ctrl'),\
+      \ pmt.intern('start'))\n            self.message_port_pub(pmt.intern('out'),\
+      \ pmt.intern('bob_collecting'))\n            self.state = 'collecting'\n   \
+      \     elif val == 'parity_recv':\n            self.message_port_pub(pmt.intern('out'),\
+      \ pmt.intern('bob_parity_recv'))\n        elif val in ('reconcile_ok','reconcile_fail'):\n\
+      \            self.message_port_pub(pmt.intern('out'), pmt.intern('bob_'+val))\n\
+      \            self.message_port_pub(pmt.intern('peer'), pmt.intern(val))\n  \
+      \      else:\n            self.message_port_pub(pmt.intern('out'), pmt.intern('bob_evt_'+val))\n\
+      \    def handle_evt(self, msg):\n        val = pmt.symbol_to_string(msg) if\
+      \ pmt.is_symbol(msg) else str(pmt.to_python(msg))\n        if val == 'rx_collected'\
+      \ and self.state == 'collecting':\n            self.message_port_pub(pmt.intern('tx_mute'),\
+      \ pmt.to_pmt(True))\n            self.message_port_pub(pmt.intern('peer'), pmt.intern('bob_collect_done'))\n\
+      \            self.message_port_pub(pmt.intern('out'), pmt.intern('bob_collect_done'))\n\
+      \            self.state = 'processing'\n"
     affinity: ''
     alias: ''
-    comment: ''
+    comment: Bob handshake controller
     maxoutbuf: '0'
     minoutbuf: '0'
   states:
-    _io_cache: ('Bob Controller', 'blk', [], [('msg_in', 'message', 1)], [('out',
+    _io_cache: ('Bob Controller', 'blk', [], [('msg_in', 'message', 1), ('evt_in',
+      'message', 1)], [('rx_ctrl', 'message', 1), ('peer', 'message', 1), ('out',
       'message', 1), ('tx_mute', 'message', 1)], '', [])
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [384, 504.0]
+    coordinate: [496, 536.0]
     rotation: 0
     state: enabled
 - name: epy_block_reconcile_monitor
@@ -419,6 +465,37 @@ blocks:
     coordinate: [1704, 288.0]
     rotation: 180
     state: enabled
+- name: epy_block_rx_gate
+  id: epy_block
+  parameters:
+    _source_code: "from gnuradio import gr\nimport numpy as np, pmt\n\nclass blk(gr.sync_block):\n\
+      \    def __init__(self, num_items=8192):\n        gr.sync_block.__init__(self,\
+      \ name='RX Gate', in_sig=[np.complex64], out_sig=[np.complex64])\n        self.num_items\
+      \ = int(num_items); self.enabled = False; self.count = 0\n        self.message_port_register_in(pmt.intern('ctrl'))\n\
+      \        self.message_port_register_out(pmt.intern('evt'))\n        self.set_msg_handler(pmt.intern('ctrl'),\
+      \ self._on_ctrl)\n    def _on_ctrl(self, msg):\n        val = pmt.symbol_to_string(msg)\
+      \ if pmt.is_symbol(msg) else str(pmt.to_python(msg))\n        if val == 'start':\
+      \ self.enabled = True; self.count = 0\n    def work(self, ins, outs):\n    \
+      \    if not self.enabled: return 0\n        n = min(len(ins[0]), len(outs[0]),\
+      \ self.num_items - self.count)\n        outs[0][:n] = ins[0][:n]; self.count\
+      \ += n\n        if self.count >= self.num_items:\n            self.enabled =\
+      \ False\n            self.message_port_pub(pmt.intern('evt'), pmt.intern('rx_collected'))\n\
+      \        return n\n"
+    affinity: ''
+    alias: ''
+    comment: Message-gated RX pass-through of N items
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    num_items: vector_size
+  states:
+    _io_cache: ('RX Gate', 'blk', [('num_items', '8192')], [('0', 'complex', 1), ('ctrl',
+      'message', 1)], [('0', 'complex', 1), ('evt', 'message', 1)], '', ['num_items'])
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [200, 248.0]
+    rotation: 0
+    state: enabled
 - name: iio_pluto_sink_0
   id: iio_pluto_sink
   parameters:
@@ -434,7 +511,7 @@ blocks:
     fpass: '0'
     frequency: '2442000000'
     fstop: '0'
-    len_tag_key: packet_len
+    len_tag_key: ''
     samplerate: sample_rate
     type: fc32
     uri: sdr_uri
@@ -442,9 +519,9 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [712, 388.0]
+    coordinate: [640, 308.0]
     rotation: 0
-    state: enabled
+    state: disabled
 - name: iio_pluto_source_0
   id: iio_pluto_source
   parameters:
@@ -460,7 +537,7 @@ blocks:
     frequency: '2442000000'
     fstop: '0'
     gain1: '''slow_attack'''
-    len_tag_key: packet_len
+    len_tag_key: ''
     manual_gain1: '64'
     maxoutbuf: '0'
     minoutbuf: '0'
@@ -475,7 +552,7 @@ blocks:
     bus_structure: null
     coordinate: [16, 156.0]
     rotation: 0
-    state: enabled
+    state: disabled
 - name: pdu_pdu_to_tagged_stream_0
   id: pdu_pdu_to_tagged_stream
   parameters:
@@ -506,7 +583,23 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [728, 580.0]
+    coordinate: [856, 564.0]
+    rotation: 0
+    state: enabled
+- name: zeromq_pub_msg_sink_ctrl
+  id: zeromq_pub_msg_sink
+  parameters:
+    address: peer_ctrl_pub_addr
+    affinity: ''
+    alias: ''
+    bind: 'True'
+    comment: Publish control messages to peer (Alice)
+    timeout: '100'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [800, 820.0]
     rotation: 0
     state: enabled
 - name: zeromq_sub_msg_source_0
@@ -524,7 +617,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [96, 640]
+    coordinate: [104, 612.0]
     rotation: 0
     state: enabled
 - name: zeromq_sub_msg_source_parity
@@ -545,6 +638,24 @@ blocks:
     coordinate: [920, 244.0]
     rotation: 0
     state: enabled
+- name: zeromq_sub_msg_source_trigger
+  id: zeromq_sub_msg_source
+  parameters:
+    address: '"tcp://127.0.0.1:9103"'
+    affinity: ''
+    alias: ''
+    bind: 'False'
+    comment: Receive trigger messages from peer
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    timeout: '100'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [152, 748.0]
+    rotation: 0
+    state: enabled
 
 connections:
 - [PHYSEC_feature_extraction_block_0, '0', PHYSEC_feature_quantization_block_0, '0']
@@ -554,19 +665,34 @@ connections:
 - [PHYSEC_reconciliation_block_0, '1', epy_block_reconcile_monitor, '0']
 - [PHYSEC_spectrogram_block_0, '0', PHYSEC_feature_extraction_block_0, '0']
 - [analog_sig_source_x_0, '0', blocks_mute_xx_0, '0']
+- [analog_sig_source_x_0_0, '0', epy_block_rx_gate, '0']
 - [blocks_head_0, '0', blocks_stream_to_vector_0, '0']
+- [blocks_mute_xx_0, '0', blocks_null_sink_0, '0']
 - [blocks_mute_xx_0, '0', iio_pluto_sink_0, '0']
 - [blocks_stream_to_vector_0, '0', PHYSEC_spectrogram_block_0, '0']
 - [blocks_stream_to_vector_0, '0', blocks_file_sink_vec, '0']
 - [blocks_stream_to_vector_1, '0', PHYSEC_reconciliation_block_0, '1']
+- [epy_block_0, out, blocks_message_debug_0, print]
 - [epy_block_0, out, zeromq_pub_msg_sink_0, in]
+- [epy_block_0, peer, blocks_message_debug_0, print]
+- [epy_block_0, peer, zeromq_pub_msg_sink_ctrl, in]
+- [epy_block_0, rx_ctrl, blocks_message_debug_0, print]
+- [epy_block_0, rx_ctrl, epy_block_rx_gate, ctrl]
+- [epy_block_0, tx_mute, blocks_message_debug_0, print]
 - [epy_block_0, tx_mute, blocks_mute_xx_0, set_mute]
+- [epy_block_reconcile_monitor, out, blocks_message_debug_0, print]
 - [epy_block_reconcile_monitor, out, epy_block_0, msg_in]
 - [epy_block_reconcile_monitor, out, zeromq_pub_msg_sink_0, in]
-- [iio_pluto_source_0, '0', blocks_head_0, '0']
+- [epy_block_rx_gate, '0', blocks_head_0, '0']
+- [epy_block_rx_gate, evt, blocks_message_debug_0, print]
+- [epy_block_rx_gate, evt, epy_block_0, evt_in]
+- [iio_pluto_source_0, '0', epy_block_rx_gate, '0']
 - [pdu_pdu_to_tagged_stream_0, '0', blocks_stream_to_vector_1, '0']
+- [zeromq_sub_msg_source_0, out, blocks_message_debug_0, print]
 - [zeromq_sub_msg_source_0, out, epy_block_0, msg_in]
 - [zeromq_sub_msg_source_parity, out, pdu_pdu_to_tagged_stream_0, pdus]
+- [zeromq_sub_msg_source_trigger, out, blocks_message_debug_0, print]
+- [zeromq_sub_msg_source_trigger, out, epy_block_0, msg_in]
 
 metadata:
   file_format: 1
