@@ -137,7 +137,7 @@ blocks:
     comment: ''
     maxoutbuf: '0'
     minoutbuf: '0'
-    model_path: /path/to/model.onnx
+    model_path: /workspace/siwn/gr-PHYSEC/examples/QExtractor.onnx
   states:
     bus_sink: false
     bus_source: false
@@ -176,7 +176,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1416, 348.0]
+    coordinate: [1456, 244.0]
     rotation: 0
     state: enabled
 - name: PHYSEC_privacy_amplification_block_0
@@ -192,8 +192,8 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1520, 148.0]
-    rotation: 0
+    coordinate: [1408, 364.0]
+    rotation: 180
     state: enabled
 - name: PHYSEC_spectrogram_block_0
   id: PHYSEC_spectrogram_block
@@ -231,7 +231,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [416, 268.0]
+    coordinate: [288, 268.0]
     rotation: 0
     state: enabled
 - name: blocks_file_sink_key_0
@@ -249,8 +249,8 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1808, 124.0]
-    rotation: 0
+    coordinate: [1200, 348.0]
+    rotation: 180
     state: enabled
 - name: blocks_file_sink_vec
   id: blocks_file_sink
@@ -268,24 +268,6 @@ blocks:
     bus_source: false
     bus_structure: null
     coordinate: [720, 148.0]
-    rotation: 0
-    state: enabled
-- name: blocks_head_0
-  id: blocks_head
-  parameters:
-    affinity: ''
-    alias: ''
-    comment: Limit number of samples collected
-    maxoutbuf: '0'
-    minoutbuf: '0'
-    num_items: vector_size
-    type: complex
-    vlen: '1'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [320, 176]
     rotation: 0
     state: enabled
 - name: blocks_message_debug_0
@@ -313,7 +295,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1464, 544.0]
+    coordinate: [1832, 192.0]
     rotation: 0
     state: enabled
 - name: blocks_mute_xx_0
@@ -351,6 +333,25 @@ blocks:
     coordinate: [520, 176]
     rotation: 0
     state: enabled
+- name: blocks_throttle_0
+  id: blocks_throttle
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: Flow control for headless run
+    ignoretag: 'True'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    samples_per_second: sample_rate
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [344, 196.0]
+    rotation: 0
+    state: enabled
 - name: blocks_vector_to_stream_0
   id: blocks_vector_to_stream
   parameters:
@@ -366,7 +367,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1568, 488.0]
+    coordinate: [1528, 176.0]
     rotation: 180
     state: true
 - name: epy_block_0
@@ -458,7 +459,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [56, 140.0]
+    coordinate: [16, 172.0]
     rotation: 0
     state: enabled
 - name: pdu_tagged_stream_to_pdu_0
@@ -475,8 +476,8 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1336, 484.0]
-    rotation: 180
+    coordinate: [1536, 108.0]
+    rotation: 0
     state: true
 - name: zeromq_pub_msg_sink_0
   id: zeromq_pub_msg_sink
@@ -507,8 +508,8 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1080, 476.0]
-    rotation: 180
+    coordinate: [1792, 100.0]
+    rotation: 0
     state: enabled
 - name: zeromq_sub_msg_source_0
   id: zeromq_sub_msg_source
@@ -532,20 +533,19 @@ blocks:
 connections:
 - [PHYSEC_feature_extraction_block_0, '0', PHYSEC_feature_quantization_block_0, '0']
 - [PHYSEC_feature_quantization_block_0, '0', PHYSEC_parity_generation_block_0, '0']
-- [PHYSEC_feature_quantization_block_0, '0', PHYSEC_privacy_amplification_block_0,
-  '0']
 - [PHYSEC_parity_generation_block_0, '0', blocks_vector_to_stream_0, '0']
+- [PHYSEC_parity_generation_block_0, '1', PHYSEC_privacy_amplification_block_0, '0']
 - [PHYSEC_privacy_amplification_block_0, '0', blocks_file_sink_key_0, '0']
 - [PHYSEC_spectrogram_block_0, '0', PHYSEC_feature_extraction_block_0, '0']
 - [analog_sig_source_x_0, '0', blocks_mute_xx_0, '0']
-- [blocks_head_0, '0', blocks_stream_to_vector_0, '0']
 - [blocks_mute_xx_0, '0', iio_pluto_sink_0, '0']
 - [blocks_stream_to_vector_0, '0', PHYSEC_spectrogram_block_0, '0']
 - [blocks_stream_to_vector_0, '0', blocks_file_sink_vec, '0']
+- [blocks_throttle_0, '0', blocks_stream_to_vector_0, '0']
 - [blocks_vector_to_stream_0, '0', pdu_tagged_stream_to_pdu_0, '0']
 - [epy_block_0, out, zeromq_pub_msg_sink_0, in]
 - [epy_block_0, tx_mute, blocks_mute_xx_0, set_mute]
-- [iio_pluto_source_0, '0', blocks_head_0, '0']
+- [iio_pluto_source_0, '0', blocks_throttle_0, '0']
 - [pdu_tagged_stream_to_pdu_0, pdus, blocks_message_debug_parity, print]
 - [pdu_tagged_stream_to_pdu_0, pdus, zeromq_pub_msg_sink_parity, in]
 - [zeromq_sub_msg_source_0, out, epy_block_0, msg_in]

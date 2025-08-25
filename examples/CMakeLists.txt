@@ -11,8 +11,6 @@ install(FILES
     control_layer.py
     demo_control_layer.py
     dynamic_visualization.py
-    network_demo.py
-    analyze_feature_vectors.py
     DESTINATION ${GR_PKG_DATA_DIR}/examples/PHYSEC
     COMPONENT "PHYSEC_examples"
 )
@@ -27,7 +25,6 @@ install(DIRECTORY flowgraphs/
 # Install documentation
 install(FILES
     README.md
-    NETWORK_DEPLOYMENT.md
     DESTINATION ${GR_PKG_DATA_DIR}/examples/PHYSEC
     COMPONENT "PHYSEC_examples"
 )

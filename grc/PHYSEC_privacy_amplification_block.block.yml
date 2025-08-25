@@ -19,7 +19,7 @@ parameters:
 inputs:
 - domain: stream
   dtype: byte
-  vlen: 512
+  vlen: 128
 
 outputs:
 - domain: stream
@@ -40,7 +40,7 @@ documentation: |
     * SHA3-256: SHA-3 with 256-bit output
     * SHA-256: SHA-2 with 256-bit output
   
-  Input: Reconciled binary key (512 byte values: 0 or 1)
+  Input: Reconciled key (128-byte ASCII-hex vector)
   Output: Final cryptographic key (128 byte values for SHA3-512)
   
   Privacy amplification serves two purposes:

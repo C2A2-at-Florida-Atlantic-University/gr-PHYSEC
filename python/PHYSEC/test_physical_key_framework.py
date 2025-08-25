@@ -122,11 +122,41 @@ def test_individual_blocks():
     recon_block = reconciliation_block(n=n, k=k, key_length=512)
     
     # Test reconciliation
-    reconciled_key = recon_block.reconcile(quantized, parity_bits)
-    if reconciled_key is not None:
-        print(f"✓ Reconciliation completed: {reconciled_key}")
+    reconciled_result = recon_block.reconcile(quantized, parity_bits)
+    if reconciled_result is not None:
+        # New API returns (reconciled_key_array, success_flag)
+        if isinstance(reconciled_result, tuple) and len(reconciled_result) == 2:
+            reconciled_key_array, reconcile_success = reconciled_result
+        else:
+            reconciled_key_array, reconcile_success = reconciled_result, True
+
+        print(f"✓ Reconciliation completed: ({type(reconciled_key_array)}, {reconcile_success})")
         print(f"  Original key: {quantized[:]}")
-        print(f"  Reconciled key: {reconciled_key[:]}")
+
+        # If reconciliation output is ASCII-encoded hex (uint8 array), convert to bytes
+        reconciled_key_bytes = None
+        try:
+            if isinstance(reconciled_key_array, np.ndarray) and reconciled_key_array.dtype == np.uint8:
+                hex_str = ''.join(map(chr, reconciled_key_array.tolist()))
+                reconciled_key_bytes = bytes.fromhex(hex_str)
+            elif isinstance(reconciled_key_array, (bytes, bytearray)):
+                reconciled_key_bytes = bytes(reconciled_key_array)
+            elif isinstance(reconciled_key_array, str):
+                reconciled_key_bytes = bytes.fromhex(reconciled_key_array)
+            else:
+                # Fallback: if it's a binary vector of 0/1, pack bits to bytes
+                arr = np.asarray(reconciled_key_array).astype(np.uint8)
+                if arr.ndim > 1:
+                    arr = arr.flatten()
+                reconciled_key_bytes = np.packbits(arr).tobytes()
+        except Exception as e:
+            print(f"  Warning: failed to convert reconciled key to bytes: {e}")
+            reconciled_key_bytes = None
+
+        if reconciled_key_bytes is not None:
+            print(f"  Reconciled key (bytes) length: {len(reconciled_key_bytes)}")
+        else:
+            print("  Reconciled key conversion to bytes failed")
     else:
         print("✗ Reconciliation failed")
         return False
@@ -139,7 +169,8 @@ def test_individual_blocks():
     priv_block = privacy_amplification_block(hash_algorithm="sha3_512")
     
     # Test privacy amplification
-    final_key = priv_block.privacy_amplification(reconciled_key)
+    # Pass bytes to privacy amplification
+    final_key = priv_block.privacy_amplification(reconciled_key_bytes)
     if final_key is not None:
         print(f"✓ Final key generated: {len(final_key)} bytes")
         print(f"  Key hex: {final_key}")
@@ -236,18 +267,42 @@ def test_complete_pipeline():
             
             # Step 5: Perform reconciliation
             print("5. Performing reconciliation...")
-            reconciled_key = recon_block.reconcile(quantized, parity_bits)
-            print(f"Reconciled key shape: {len(reconciled_key)}")
-            if reconciled_key is None:
+            reconciled_result = recon_block.reconcile(quantized, parity_bits)
+            if reconciled_result is None:
                 print(f"✗ Failed to perform reconciliation for sample {i+1}")
                 continue
-            
-            all_reconciled_keys.append(reconciled_key)
+            # Unpack new API (reconciled_key_array, success_flag)
+            if isinstance(reconciled_result, tuple) and len(reconciled_result) == 2:
+                reconciled_key_array, reconcile_success = reconciled_result
+            else:
+                reconciled_key_array, reconcile_success = reconciled_result, True
+            print(f"Reconciled key array length: {len(reconciled_key_array)}; success={reconcile_success}")
+
+            # Convert reconciled key to bytes for privacy amplification
+            reconciled_key_bytes = None
+            try:
+                if isinstance(reconciled_key_array, np.ndarray) and reconciled_key_array.dtype == np.uint8:
+                    hex_str = ''.join(map(chr, reconciled_key_array.tolist()))
+                    reconciled_key_bytes = bytes.fromhex(hex_str)
+                elif isinstance(reconciled_key_array, (bytes, bytearray)):
+                    reconciled_key_bytes = bytes(reconciled_key_array)
+                elif isinstance(reconciled_key_array, str):
+                    reconciled_key_bytes = bytes.fromhex(reconciled_key_array)
+                else:
+                    arr = np.asarray(reconciled_key_array).astype(np.uint8)
+                    if arr.ndim > 1:
+                        arr = arr.flatten()
+                    reconciled_key_bytes = np.packbits(arr).tobytes()
+            except Exception as e:
+                print(f"  Warning: failed to convert reconciled key to bytes: {e}")
+                reconciled_key_bytes = None
+
+            all_reconciled_keys.append(reconciled_key_bytes if reconciled_key_bytes is not None else b"")
             
             # Step 6: Privacy amplification
             print("6. Performing privacy amplification...")
-            final_key = priv_block.privacy_amplification(reconciled_key)
-            print(f"Final key shape: {len(final_key)}")
+            final_key = priv_block.privacy_amplification(reconciled_key_bytes)
+            print(f"Final key length: {len(final_key)}")
             if final_key is None:
                 print(f"✗ Failed to perform privacy amplification for sample {i+1}")
                 continue
@@ -355,37 +410,32 @@ def test_stream_connectivity():
             # Process through parity generation block
             print("4. Parity generation block...")
             parity_input = [[quantized_output]]
-            # Create a list to hold the string output from parity generation
-            parity_output = [[''] * (n-k)]  # List of strings, not numpy array
+            # Output array for parity (vector of length n-k, uint8)
+            parity_output = [np.zeros((1, n-k), dtype=np.uint8)]
             items_processed = parity_block.work(parity_input, parity_output)
             parity_output_data = parity_output[0][0]
-            print(f"   Parity output data: {parity_output_data}")
-            print(f"   Parity output data length: {len(parity_output_data)}")
-            print(f"   Parity output data type: {type(parity_output_data)}")
-            print(f"   Output shape: {len(parity_output_data)}")
+            print(f"   Parity output length: {len(parity_output_data)}")
+            print(f"   Parity output dtype: {parity_output_data.dtype}")
             
             # Process through reconciliation block
             print("5. Reconciliation block...")
             recon_input = [[quantized_output], [parity_output_data]]
-            # Create a list to hold the string output from reconciliation
-            recon_output = [[''] * 128]  # List of strings, not numpy array
-            items_processed = recon_block.work(recon_input, recon_output)
-            reconciled_output = recon_output[0][0]
-            print(f"   Output shape: {len(reconciled_output)}")
-            print(f"   Reconciliation data: {reconciled_output}")
-            print(f"   Reconciliation data type: {type(reconciled_output)}")
+            # Outputs: reconciled key (k uint8) and success flag (scalar uint8)
+            recon_out_key = np.zeros((1, k), dtype=np.uint8)
+            recon_out_flag = np.zeros(1, dtype=np.uint8)
+            items_processed = recon_block.work(recon_input, [recon_out_key, recon_out_flag])
+            reconciled_output = recon_out_key[0]
+            success_flag = bool(recon_out_flag[0])
+            print(f"   Reconciled output length: {len(reconciled_output)}; success={success_flag}")
             
             # Process through privacy amplification block
             print("6. Privacy amplification block...")
-            # print(f"Reconciled output: {reconciled_output}")
             priv_input = [[reconciled_output]]
-            # priv_output = [np.zeros((1, 128), dtype=np.uint8)]
-            priv_output = [[''] * 128]
+            priv_output = [np.zeros((1, 128), dtype=np.uint8)]
             items_processed = priv_block.work(priv_input, priv_output)
             final_key_output = priv_output[0][0]
-            print(f"   Key output shape: {len(final_key_output)}")
-            print(f"   Key output data: {final_key_output}")
-            print(f"   Key output data type: {type(final_key_output)}")
+            print(f"   Key output length: {len(final_key_output)}")
+            print(f"   Key output dtype: {final_key_output.dtype}")
             
             print("\n✓ Stream connectivity test successful!")
             print(f"  Final key generated: {len(final_key_output)} bytes")

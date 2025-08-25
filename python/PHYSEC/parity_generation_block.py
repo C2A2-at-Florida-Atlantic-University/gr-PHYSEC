@@ -24,9 +24,8 @@ class parity_generation_block(gr.sync_block):
             self,
             name="PHYSEC Parity Generation Block",
             in_sig=[(np.uint8, key_length)],  # Binary key input
-            # out_sig=[(np.uint8, n-k)]  # Parity bits output
-            #Output is a string of size n-k
-            out_sig=[(np.uint8, n-k)]
+            # Outputs: parity bits (n-k) and key hex (k)
+            out_sig=[(np.uint8, n-k), (np.uint8, k)]
         )
         
         # Store parameters
@@ -78,11 +77,13 @@ class parity_generation_block(gr.sync_block):
             print(f"Generated parity: input_bits={len(binary_key)}, parity_bits={len(parity_symbols)}")
             print(f"  RS Code: ({self.n}, {self.k})")
             
-            # Convert parity symbols which is a unicodestring to expected output np.uint8
+            # Convert parity symbols (unicode string) to expected output np.uint8
             parity_symbols_list = [ord(char) for char in parity_symbols]
             parity_symbols_uint8 = np.array(parity_symbols_list, dtype=np.uint8)
+            # Also provide key hex as uint8 (ASCII) length k
+            key_hex_uint8 = np.array([ord(c) for c in hex_str], dtype=np.uint8)
             
-            return parity_symbols_uint8
+            return parity_symbols_uint8, key_hex_uint8
             
         except Exception as e:
             print(f"Error in parity generation: {e}")
@@ -105,6 +106,7 @@ class parity_generation_block(gr.sync_block):
             # Get input and output data
             in0 = input_items[0]
             out0 = output_items[0]
+            out1 = output_items[1]
             num_input_items = len(in0)
             
             print(f"Processing {num_input_items} binary key(s)")
@@ -113,16 +115,19 @@ class parity_generation_block(gr.sync_block):
                 # Get the current binary key
                 binary_key = in0[i]
                 
-                # Generate parity bits
-                parity_bits = self.generate_parity(binary_key)
+                # Generate parity bits and key hex
+                result = self.generate_parity(binary_key)
                 
-                if parity_bits is not None:
+                if result is not None:
+                    parity_bits, key_hex_uint8 = result
                     out0[i] = parity_bits
-                    print(f"✓ Generated parity bits: {len(parity_bits)} bits")
+                    out1[i] = key_hex_uint8
+                    print(f"✓ Generated parity bits: {len(parity_bits)} bits; key hex: {len(key_hex_uint8)} chars")
                 else:
                     print(f"✗ Failed to generate parity bits for key {i}")
                     # Fill with zeros if generation failed
-                    out0[i] = np.zeros(self.s * 4, dtype=np.uint8)
+                    out0[i] = np.zeros(self.s, dtype=np.uint8)
+                    out1[i] = np.zeros(self.k, dtype=np.uint8)
                 
             
             return num_input_items

@@ -35,7 +35,10 @@ inputs:
 outputs:
 - domain: stream
   dtype: byte
-  vlen: '${key_length}'
+  vlen: '${k}'
+- domain: stream
+  dtype: byte
+  vlen: 1
 
 file_format: 1
 
@@ -55,7 +58,9 @@ documentation: |
   - Binary key (key_length byte values: 0 or 1)
   - Parity bits ((n-k) byte values)
   
-  Output: Reconciled binary key (key_length byte values: 0 or 1)
+  Outputs:
+  - Reconciled key (k byte values)
+  - Success flag (1 byte; 1=success, 0=failure)
   
   The block combines the noisy key with parity bits and uses Reed-Solomon
   decoding to attempt error correction. If successful, it outputs a corrected

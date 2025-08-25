@@ -125,12 +125,12 @@ blocks:
     comment: ''
     maxoutbuf: '0'
     minoutbuf: '0'
-    model_path: /path/to/model.onnx
+    model_path: /workspace/siwn/gr-PHYSEC/examples/QExtractor.onnx
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1160, 148.0]
+    coordinate: [1032, 164.0]
     rotation: 0
     state: enabled
 - name: PHYSEC_feature_quantization_block_0
@@ -162,8 +162,8 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1720, 220.0]
-    rotation: 0
+    coordinate: [1680, 60.0]
+    rotation: 180
     state: enabled
 - name: PHYSEC_reconciliation_block_0
   id: PHYSEC_reconciliation_block
@@ -180,7 +180,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1704, 332.0]
+    coordinate: [1664, 196.0]
     rotation: 0
     state: enabled
 - name: PHYSEC_spectrogram_block_0
@@ -197,7 +197,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [944, 148.0]
+    coordinate: [768, 156.0]
     rotation: 0
     state: enabled
 - name: analog_sig_source_x_0
@@ -237,8 +237,8 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [2024, 196.0]
-    rotation: 0
+    coordinate: [1456, 36.0]
+    rotation: 180
     state: enabled
 - name: blocks_file_sink_vec
   id: blocks_file_sink
@@ -255,7 +255,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [760, 176]
+    coordinate: [736, 260.0]
     rotation: 0
     state: enabled
 - name: blocks_head_0
@@ -318,7 +318,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [904, 408.0]
+    coordinate: [504, 360.0]
     rotation: 0
     state: enabled
 - name: blocks_stream_to_vector_0
@@ -354,7 +354,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1512, 368.0]
+    coordinate: [1424, 256.0]
     rotation: 0
     state: true
 - name: epy_block_0
@@ -391,8 +391,33 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [616, 416.0]
+    coordinate: [384, 504.0]
     rotation: 0
+    state: enabled
+- name: epy_block_reconcile_monitor
+  id: epy_block
+  parameters:
+    _source_code: "from gnuradio import gr\nimport pmt\nimport numpy as np\n\nclass\
+      \ blk(gr.sync_block):\n    def __init__(self):\n        gr.sync_block.__init__(self,\
+      \ name='Reconcile Monitor', in_sig=[(np.uint8,1)], out_sig=None)\n        self.message_port_register_out(pmt.intern('out'))\n\
+      \    def work(self, input_items, output_items):\n        flags = input_items[0]\n\
+      \        for f in flags:\n            val = int(f[0]) if hasattr(f, '__len__')\
+      \ else int(f)\n            msg = pmt.intern('reconcile_ok') if val != 0 else\
+      \ pmt.intern('reconcile_fail')\n            self.message_port_pub(pmt.intern('out'),\
+      \ msg)\n        return len(flags)\n"
+    affinity: ''
+    alias: ''
+    comment: Emit reconcile_ok/fail based on success flag stream
+    maxoutbuf: '0'
+    minoutbuf: '0'
+  states:
+    _io_cache: ('Reconcile Monitor', 'blk', [], [('0', 'byte', 1)], [('out', 'message',
+      1)], '', [])
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1704, 288.0]
+    rotation: 180
     state: enabled
 - name: iio_pluto_sink_0
   id: iio_pluto_sink
@@ -417,7 +442,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1064, 364.0]
+    coordinate: [712, 388.0]
     rotation: 0
     state: enabled
 - name: iio_pluto_source_0
@@ -448,7 +473,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [96, 176]
+    coordinate: [16, 156.0]
     rotation: 0
     state: enabled
 - name: pdu_pdu_to_tagged_stream_0
@@ -465,7 +490,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1320, 420.0]
+    coordinate: [1184, 252.0]
     rotation: 0
     state: true
 - name: zeromq_pub_msg_sink_0
@@ -481,7 +506,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [752, 640]
+    coordinate: [728, 580.0]
     rotation: 0
     state: enabled
 - name: zeromq_sub_msg_source_0
@@ -517,7 +542,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1240, 260.0]
+    coordinate: [920, 244.0]
     rotation: 0
     state: enabled
 
@@ -526,6 +551,7 @@ connections:
 - [PHYSEC_feature_quantization_block_0, '0', PHYSEC_reconciliation_block_0, '0']
 - [PHYSEC_privacy_amplification_block_0, '0', blocks_file_sink_key_0, '0']
 - [PHYSEC_reconciliation_block_0, '0', PHYSEC_privacy_amplification_block_0, '0']
+- [PHYSEC_reconciliation_block_0, '1', epy_block_reconcile_monitor, '0']
 - [PHYSEC_spectrogram_block_0, '0', PHYSEC_feature_extraction_block_0, '0']
 - [analog_sig_source_x_0, '0', blocks_mute_xx_0, '0']
 - [blocks_head_0, '0', blocks_stream_to_vector_0, '0']
@@ -535,6 +561,8 @@ connections:
 - [blocks_stream_to_vector_1, '0', PHYSEC_reconciliation_block_0, '1']
 - [epy_block_0, out, zeromq_pub_msg_sink_0, in]
 - [epy_block_0, tx_mute, blocks_mute_xx_0, set_mute]
+- [epy_block_reconcile_monitor, out, epy_block_0, msg_in]
+- [epy_block_reconcile_monitor, out, zeromq_pub_msg_sink_0, in]
 - [iio_pluto_source_0, '0', blocks_head_0, '0']
 - [pdu_pdu_to_tagged_stream_0, '0', blocks_stream_to_vector_1, '0']
 - [zeromq_sub_msg_source_0, out, epy_block_0, msg_in]

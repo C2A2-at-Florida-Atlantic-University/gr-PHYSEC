@@ -33,6 +33,9 @@ outputs:
 - domain: stream
   dtype: byte
   vlen: '${n - k}'
+- domain: stream
+  dtype: byte
+  vlen: '${k}'
 
 file_format: 1
 
@@ -49,7 +52,9 @@ documentation: |
   - Key Length: Length of the input binary key
   
   Input: Binary key (key_length byte values: 0 or 1)
-  Output: Parity bits ((n-k) byte values)
+  Outputs:
+  - Parity bits ((n-k) byte values)
+  - Key hex (k byte ASCII-hex characters)
   
   The block uses Reed-Solomon coding to generate parity bits that can
   correct up to (n-k)/2 symbol errors. This is crucial for successful
