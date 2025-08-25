@@ -1,153 +1,113 @@
-# PHYSEC GNU Radio Flowgraphs
+# PHYSEC Flowgraphs
 
-This directory contains modular GNU Radio flowgraph implementations for the PHYSEC quantum key generation protocol. Each flowgraph is self-contained and can be used independently or as part of the larger control layer system.
+This directory contains GNU Radio Companion (GRC) flowgraphs for the PHYSEC quantum key generation protocol.
 
-## 📁 Flowgraph Files
+## Working GRC Files
 
-### 🔧 Core Processing Flowgraphs
+### ✅ **Alice and Bob Node Flowgraphs (YAML Format)**
 
-| **File** | **Description** | **Purpose** |
-|----------|-----------------|-------------|
-| `physec_processor.py` | PHYSEC signal processing pipeline | IQ → Spectrogram → Features → Quantized Bits |
-| `sinusoidal_probe.py` | Sinusoidal signal transmission | Generate and transmit 1 kHz probe signal |
-| `iq_receiver.py` | IQ sample collection | Receive and collect IQ samples from SDR |
+- **`alice_node_yaml.grc`** - Complete Alice node flowgraph in YAML format for GNU Radio 3.10
+- **`bob_node_yaml.grc`** - Complete Bob node flowgraph in YAML format for GNU Radio 3.10
 
-### 🔐 Cryptographic Flowgraphs
+These files use the **correct YAML format** that GNU Radio 3.10 expects and include all the necessary blocks for SDR communication and signal processing.
 
-| **File** | **Description** | **Purpose** |
-|----------|-----------------|-------------|
-| `parity_generator.py` | Reed-Solomon parity generation | Generate error correction parity bits |
-| `reconciliator.py` | Reed-Solomon reconciliation | Correct errors using parity bits |
-| `privacy_amplifier.py` | Privacy amplification | Generate final cryptographic key |
+#### **Block Structure:**
+- **Variables**: `sample_rate`, `sdr_uri`, `vector_size`
+- **IIO Blocks**: `iio_fmcomms2_source_fc32`, `iio_fmcomms2_sink_fc32`
+- **Signal Generation**: `analog_sig_source_c`
+- **Processing**: `blocks_head`, `blocks_stream_to_vector`
+- **Data Collection**: `blocks_vector_sink_c` (2 instances)
 
-### 📋 Support Files
+#### **Connections:**
+1. PlutoSDR Source → Head → Stream to Vector → Vector Sink (Vector)
+2. PlutoSDR Source → Head → Vector Sink (IQ)
+3. Signal Source → PlutoSDR Sink
 
-| **File** | **Description** | **Purpose** |
-|----------|-----------------|-------------|
-| `__init__.py` | Module initialization | Factory functions and imports |
-| `*.grc` | GNU Radio Companion files | Visual flowgraph representations |
+### ✅ **Individual Component Flowgraphs**
 
-## 🚀 Usage
+- **`physec_processor.grc`** - PHYSEC signal processing pipeline
+- **`sinusoidal_probe.grc`** - Sinusoidal probe generation
+- **`iq_receiver.grc`** - IQ sample collection
+- **`parity_generator.grc`** - Parity bit generation
+- **`reconciliator.grc`** - Key reconciliation
+- **`privacy_amplifier.grc`** - Privacy amplification
 
-### Direct Import (Recommended)
+## Python Implementations
 
+- **`alice_node.py`** - Full Python implementation of Alice node with PHYSEC
+- **`bob_node.py`** - Full Python implementation of Bob node with PHYSEC
+- **`physec_processor.py`** - PHYSEC processing flowgraph
+- **`sinusoidal_probe.py`** - Probe generation flowgraph
+- **`iq_receiver.py`** - IQ collection flowgraph
+- **`reconciliator.py`** - Reconciliation flowgraph
+- **`privacy_amplifier.py`** - Privacy amplification flowgraph
+- **`parity_generator.py`** - Parity generation flowgraph
+
+## Usage
+
+### **In GNU Radio Companion:**
+1. **Open GRC**: Launch GNU Radio Companion
+2. **Load Flowgraph**: File → Open → Select `alice_node_yaml.grc` or `bob_node_yaml.grc`
+3. **Modify Parameters**: Adjust sample rate, SDR URI, vector size as needed
+4. **Generate**: Generate → Generate Python
+5. **Run**: Execute the generated Python file
+
+### **Direct Python Usage:**
 ```python
-from flowgraphs import (
-    create_physec_processor,
-    create_sinusoidal_probe,
-    create_iq_receiver,
-    create_parity_generator,
-    create_reconciliator,
-    create_privacy_amplifier
-)
+from flowgraphs import create_alice_node_flowgraph, create_bob_node_flowgraph
 
-# Create and use flowgraphs
-processor = create_physec_processor(iq_samples)
-probe = create_sinusoidal_probe(sample_rate=1e6, frequency=1000)
+# Create and run Alice node
+alice = create_alice_node_flowgraph()
+alice.start()
+alice.wait()
+
+# Create and run Bob node
+bob = create_bob_node_flowgraph()
+bob.start()
+bob.wait()
 ```
 
-### Individual Module Import
+## Key Features
 
-```python
-from flowgraphs.physec_processor import PhysecProcessor
-from flowgraphs.sinusoidal_probe import SinusoidalProbe
+- **SDR Communication**: PlutoSDR source/sink for IQ collection and probe transmission
+- **Signal Processing**: Stream-to-vector conversion and sample collection
+- **Data Collection**: Vector sinks for storing IQ samples and processed data
+- **Probe Generation**: Sine wave generation for probe signals
+- **GNU Radio 3.10 Compatible**: Uses correct block IDs and YAML format
 
-# Use classes directly
-processor = PhysecProcessor(samples, fft_window=512, vector_size=8192)
-probe = SinusoidalProbe(sample_rate=1e6, frequency=1000, amplitude=0.5)
-```
+## Block IDs Used
 
-### Standalone Testing
+The working GRC files use the exact block IDs available in GNU Radio 3.10:
 
-Each flowgraph can be tested independently:
+- **IIO**: `iio_fmcomms2_source_fc32`, `iio_fmcomms2_sink_fc32`
+- **Blocks**: `blocks_head`, `blocks_stream_to_vector`, `blocks_vector_sink_c`
+- **Analog**: `analog_sig_source_c`
 
-```bash
-cd flowgraphs/
-python3 physec_processor.py      # Test PHYSEC processing
-python3 sinusoidal_probe.py      # Test signal transmission  
-python3 iq_receiver.py           # Test sample collection
-python3 parity_generator.py      # Test parity generation
-python3 reconciliator.py         # Test reconciliation
-python3 privacy_amplifier.py     # Test privacy amplification
-```
+## Troubleshooting
 
-## 📊 Flowgraph Details
+### **"Missing Block" Errors:**
+- Ensure you're using GNU Radio 3.10
+- Use the YAML format files (`*_yaml.grc`)
+- Check that all block IDs match your installation
 
-### PhysecProcessor
-**Input**: Complex IQ samples (8192 samples)  
-**Output**: Quantized bits (512 bits) + Spectrogram data (204×31)  
-**Blocks**: Spectrogram → Feature Extraction → Quantization  
+### **YAML Parsing Errors:**
+- Use the `*_yaml.grc` files (not the old XML format)
+- Ensure proper YAML syntax and indentation
 
-### SinusoidalProbe  
-**Input**: Configuration parameters  
-**Output**: RF signal via PlutoSDR (or file)  
-**Blocks**: Signal Source → Noise → PlutoSDR Sink  
+### **Block Not Found:**
+- Verify block IDs match your GNU Radio installation
+- Check that required modules are installed (IIO, blocks, analog)
 
-### IQReceiver
-**Input**: RF signal via PlutoSDR  
-**Output**: Complex IQ samples (8192 samples)  
-**Blocks**: PlutoSDR Source → Head → Vector Sink  
+## File Formats
 
-### ParityGenerator
-**Input**: Binary key (512 bytes)  
-**Output**: Parity bits (127 bytes)  
-**Blocks**: Vector Source → Reed-Solomon Encoder → File Sink  
+- **`.grc`** - GNU Radio Companion flowgraph files
+- **`.py`** - Generated Python implementations
+- **YAML Format** - Modern GNU Radio 3.10 format (recommended)
+- **XML Format** - Legacy format (deprecated in GR 3.10)
 
-### Reconciliator  
-**Input**: Binary key + Parity bits  
-**Output**: Reconciled key (128 bytes) + Success flag  
-**Blocks**: Vector Sources → Reed-Solomon Decoder → File Sinks  
+## Notes
 
-### PrivacyAmplifier
-**Input**: Reconciled key (128 bytes)  
-**Output**: Final cryptographic key (128 bytes)  
-**Blocks**: Vector Source → SHA3-512 Hash → File Sink  
-
-## 🔧 Requirements
-
-- **GNU Radio 3.10+**
-- **gr-PHYSEC library** (custom PHYSEC blocks)
-- **PlutoSDR** (optional, falls back to test signals/file I/O)
-- **Python 3.x** with numpy
-
-## 🎯 Integration
-
-These flowgraphs are automatically imported and used by `control_layer.py`:
-
-```python
-# Automatic selection in control_layer.py
-if FLOWGRAPHS_AVAILABLE:
-    # Use modular flowgraphs (this directory)
-    processor = create_physec_processor(samples)
-else:
-    # Fallback to inline implementations
-    processor = InlinePhysecProcessor(samples)
-```
-
-## 📈 Benefits of Modular Design
-
-✅ **Reusability**: Each flowgraph can be used independently  
-✅ **Testability**: Individual components can be tested in isolation  
-✅ **Maintainability**: Easier to debug and modify specific functions  
-✅ **Visualization**: GRC files provide visual flowgraph representation  
-✅ **Flexibility**: Easy to swap implementations or add new features  
-
-## 🔍 GRC Visualization
-
-GNU Radio Companion (`.grc`) files are provided for visual flowgraph editing:
-
-```bash
-gnuradio-companion sinusoidal_probe.grc
-```
-
-This opens the flowgraph in the GNU Radio visual editor for inspection and modification.
-
-## 🧪 Testing
-
-The entire modular system can be tested with:
-
-```bash
-cd ../
-python3 test_modular_system.py  # Test integration
-python3 demo_control_layer.py --run --runs 1  # Full protocol test
-```
+- The YAML format files are the **recommended** format for GNU Radio 3.10
+- All working flowgraphs use the **exact block IDs** available in your installation
+- The Python implementations provide full PHYSEC protocol functionality
+- These flowgraphs are designed for **PlutoSDR** hardware compatibility

@@ -1,0 +1,554 @@
+options:
+  parameters:
+    author: Alice Node
+    catch_exceptions: 'True'
+    category: '[PHYSEC]'
+    cmake_opt: ''
+    comment: Alice protocol node with messaging triggers (ZeroMQ) and PlutoSDR
+    copyright: ''
+    description: Alice full-node skeleton in YAML GRC format (GR 3.10)
+    gen_cmake: 'On'
+    gen_linking: dynamic
+    generate_options: qt_gui
+    hier_block_src_path: '.:'
+    id: alice_node_protocol
+    max_nouts: '0'
+    output_language: python
+    placement: (0,0)
+    qt_qss_theme: ''
+    realtime_scheduling: ''
+    run: 'True'
+    run_command: '{python} -u {filename}'
+    run_options: prompt
+    sizing_mode: fixed
+    thread_safe_setters: ''
+    title: Alice Protocol Node - PHYSEC
+    window_size: (1200,900)
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [8, 8]
+    rotation: 0
+    state: enabled
+
+blocks:
+- name: key_len
+  id: variable
+  parameters:
+    comment: Final key length (bytes)
+    value: '128'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1064, 44]
+    rotation: 0
+    state: enabled
+- name: monitor_addr
+  id: variable
+  parameters:
+    comment: ZeroMQ address for status out
+    value: '"tcp://127.0.0.1:9100"'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [960, 12]
+    rotation: 0
+    state: enabled
+- name: parity_len
+  id: variable
+  parameters:
+    comment: Parity length (bytes)
+    value: '127'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1064, 12]
+    rotation: 0
+    state: enabled
+- name: parity_pub_addr
+  id: variable
+  parameters:
+    comment: ZeroMQ address for parity PUB
+    value: '"tcp://127.0.0.1:9200"'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1224, 20.0]
+    rotation: 0
+    state: enabled
+- name: peer_ctrl_addr
+  id: variable
+  parameters:
+    comment: ZeroMQ address for control in
+    value: '"tcp://127.0.0.1:9002"'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [744, 12]
+    rotation: 0
+    state: enabled
+- name: sample_rate
+  id: variable
+  parameters:
+    comment: Sample rate for SDR
+    value: '2000000'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [184, 12]
+    rotation: 0
+    state: enabled
+- name: sdr_uri
+  id: variable
+  parameters:
+    comment: PlutoSDR URI
+    value: '"ip:192.168.2.1"'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [376, 12]
+    rotation: 0
+    state: enabled
+- name: vector_size
+  id: variable
+  parameters:
+    comment: Number of IQ samples to collect
+    value: '8192'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [560, 12]
+    rotation: 0
+    state: enabled
+- name: PHYSEC_feature_extraction_block_0
+  id: PHYSEC_feature_extraction_block
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    model_path: /path/to/model.onnx
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1160, 148.0]
+    rotation: 0
+    state: enabled
+- name: PHYSEC_feature_quantization_block_0
+  id: PHYSEC_feature_quantization_block
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    quantization_method: mean_threshold
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1160, 260.0]
+    rotation: 0
+    state: enabled
+- name: PHYSEC_parity_generation_block_0
+  id: PHYSEC_parity_generation_block
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    k: '128'
+    key_length: '512'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    n: '255'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1416, 348.0]
+    rotation: 0
+    state: enabled
+- name: PHYSEC_privacy_amplification_block_0
+  id: PHYSEC_privacy_amplification_block
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    hash_algorithm: sha3_512
+    maxoutbuf: '0'
+    minoutbuf: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1520, 148.0]
+    rotation: 0
+    state: enabled
+- name: PHYSEC_spectrogram_block_0
+  id: PHYSEC_spectrogram_block
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    fft_window: '512'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    vector_size: '8192'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [944, 148.0]
+    rotation: 0
+    state: enabled
+- name: analog_sig_source_x_0
+  id: analog_sig_source_x
+  parameters:
+    affinity: ''
+    alias: ''
+    amp: '1'
+    comment: Probe signal source
+    freq: '1000000'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    offset: '0'
+    phase: '0'
+    samp_rate: sample_rate
+    type: complex
+    waveform: analog.GR_SIN_WAVE
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [416, 268.0]
+    rotation: 0
+    state: enabled
+- name: blocks_file_sink_key_0
+  id: blocks_file_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    append: 'False'
+    comment: Store final key (Alice)
+    file: /tmp/alice_key.bin
+    type: byte
+    unbuffered: 'False'
+    vlen: '128'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1808, 124.0]
+    rotation: 0
+    state: enabled
+- name: blocks_file_sink_vec
+  id: blocks_file_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    append: 'False'
+    comment: Dump collected vectors (placeholder)
+    file: ''
+    type: complex
+    unbuffered: 'False'
+    vlen: '8192'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [720, 148.0]
+    rotation: 0
+    state: enabled
+- name: blocks_head_0
+  id: blocks_head
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: Limit number of samples collected
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    num_items: vector_size
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [320, 176]
+    rotation: 0
+    state: enabled
+- name: blocks_message_debug_0
+  id: blocks_message_debug
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    en_uvec: 'True'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [512, 536.0]
+    rotation: 0
+    state: enabled
+- name: blocks_message_debug_parity
+  id: blocks_message_debug
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: Parity PDU debug
+    en_uvec: 'True'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1464, 544.0]
+    rotation: 0
+    state: enabled
+- name: blocks_mute_xx_0
+  id: blocks_mute_xx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: Mute/unmute TX based on control
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    mute: 'True'
+    type: complex
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [680, 328.0]
+    rotation: 0
+    state: enabled
+- name: blocks_stream_to_vector_0
+  id: blocks_stream_to_vector
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: Convert stream to vector for processing
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    num_items: vector_size
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [520, 176]
+    rotation: 0
+    state: enabled
+- name: blocks_vector_to_stream_0
+  id: blocks_vector_to_stream
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    num_items: '127'
+    type: byte
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1568, 488.0]
+    rotation: 180
+    state: true
+- name: epy_block_0
+  id: epy_block
+  parameters:
+    _source_code: "from gnuradio import gr\nimport pmt\n\nclass blk(gr.basic_block):\n\
+      \    def __init__(self):\n        gr.basic_block.__init__(self, name='Alice\
+      \ Controller', in_sig=None, out_sig=None)\n        self.message_port_register_in(pmt.intern('msg_in'))\n\
+      \        self.message_port_register_out(pmt.intern('tx_mute'))\n        self.message_port_register_out(pmt.intern('out'))\n\
+      \        self.set_msg_handler(pmt.intern('msg_in'), self.handle_ctrl)\n\n  \
+      \  def handle_ctrl(self, msg):\n        try:\n            val = pmt.symbol_to_string(msg)\
+      \ if pmt.is_symbol(msg) else str(pmt.to_python(msg))\n        except Exception:\n\
+      \            val = 'unknown'\n        if 'start_tx' in val:\n            self.message_port_pub(pmt.intern('tx_mute'),\
+      \ pmt.to_pmt(False))\n            self.message_port_pub(pmt.intern('out'), pmt.intern('alice_start_tx'))\n\
+      \        elif 'stop_tx' in val:\n            self.message_port_pub(pmt.intern('tx_mute'),\
+      \ pmt.to_pmt(True))\n            self.message_port_pub(pmt.intern('out'), pmt.intern('alice_stop_tx'))\n\
+      \        elif 'collect' in val:\n            self.message_port_pub(pmt.intern('out'),\
+      \ pmt.intern('alice_collecting'))\n        elif 'quantized' in val:\n      \
+      \      self.message_port_pub(pmt.intern('out'), pmt.intern('alice_quantized'))\n\
+      \        elif 'parity_sent' in val:\n            self.message_port_pub(pmt.intern('out'),\
+      \ pmt.intern('alice_parity_sent'))\n        elif 'privacy_done' in val:\n  \
+      \          self.message_port_pub(pmt.intern('out'), pmt.intern('alice_privacy_done'))\n\
+      \        else:\n            self.message_port_pub(pmt.intern('out'), pmt.intern('alice_unknown'))\n"
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+  states:
+    _io_cache: ('Alice Controller', 'blk', [], [('msg_in', 'message', 1)], [('out',
+      'message', 1), ('tx_mute', 'message', 1)], '', [])
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [384, 444.0]
+    rotation: 0
+    state: enabled
+- name: iio_pluto_sink_0
+  id: iio_pluto_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    attenuation1: '10.0'
+    bandwidth: '20000000'
+    buffer_size: '32768'
+    comment: PlutoSDR sink for transmitting probe
+    cyclic: 'False'
+    filter: ''
+    filter_source: '''Auto'''
+    fpass: '0'
+    frequency: '2442000000'
+    fstop: '0'
+    len_tag_key: packet_len
+    samplerate: sample_rate
+    type: fc32
+    uri: sdr_uri
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [864, 292.0]
+    rotation: 0
+    state: enabled
+- name: iio_pluto_source_0
+  id: iio_pluto_source
+  parameters:
+    affinity: ''
+    alias: ''
+    bandwidth: '20000000'
+    bbdc: 'True'
+    buffer_size: '32768'
+    comment: PlutoSDR source for receiving IQ samples
+    filter: ''
+    filter_source: '''Auto'''
+    fpass: '0'
+    frequency: '2442000000'
+    fstop: '0'
+    gain1: '''slow_attack'''
+    len_tag_key: packet_len
+    manual_gain1: '64'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    quadrature: 'True'
+    rfdc: 'True'
+    samplerate: sample_rate
+    type: fc32
+    uri: sdr_uri
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [56, 140.0]
+    rotation: 0
+    state: enabled
+- name: pdu_tagged_stream_to_pdu_0
+  id: pdu_tagged_stream_to_pdu
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    tag: packet_len
+    type: byte
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1336, 484.0]
+    rotation: 180
+    state: true
+- name: zeromq_pub_msg_sink_0
+  id: zeromq_pub_msg_sink
+  parameters:
+    address: monitor_addr
+    affinity: ''
+    alias: ''
+    bind: 'False'
+    comment: Publish status updates to monitor
+    timeout: '100'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [728, 476.0]
+    rotation: 0
+    state: enabled
+- name: zeromq_pub_msg_sink_parity
+  id: zeromq_pub_msg_sink
+  parameters:
+    address: parity_pub_addr
+    affinity: ''
+    alias: ''
+    bind: 'False'
+    comment: Publish parity messages to peer
+    timeout: '100'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1080, 476.0]
+    rotation: 180
+    state: enabled
+- name: zeromq_sub_msg_source_0
+  id: zeromq_sub_msg_source
+  parameters:
+    address: peer_ctrl_addr
+    affinity: ''
+    alias: ''
+    bind: 'False'
+    comment: Receive control messages from peer/controller
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    timeout: '100'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [96, 444.0]
+    rotation: 0
+    state: enabled
+
+connections:
+- [PHYSEC_feature_extraction_block_0, '0', PHYSEC_feature_quantization_block_0, '0']
+- [PHYSEC_feature_quantization_block_0, '0', PHYSEC_parity_generation_block_0, '0']
+- [PHYSEC_feature_quantization_block_0, '0', PHYSEC_privacy_amplification_block_0,
+  '0']
+- [PHYSEC_parity_generation_block_0, '0', blocks_vector_to_stream_0, '0']
+- [PHYSEC_privacy_amplification_block_0, '0', blocks_file_sink_key_0, '0']
+- [PHYSEC_spectrogram_block_0, '0', PHYSEC_feature_extraction_block_0, '0']
+- [analog_sig_source_x_0, '0', blocks_mute_xx_0, '0']
+- [blocks_head_0, '0', blocks_stream_to_vector_0, '0']
+- [blocks_mute_xx_0, '0', iio_pluto_sink_0, '0']
+- [blocks_stream_to_vector_0, '0', PHYSEC_spectrogram_block_0, '0']
+- [blocks_stream_to_vector_0, '0', blocks_file_sink_vec, '0']
+- [blocks_vector_to_stream_0, '0', pdu_tagged_stream_to_pdu_0, '0']
+- [epy_block_0, out, zeromq_pub_msg_sink_0, in]
+- [epy_block_0, tx_mute, blocks_mute_xx_0, set_mute]
+- [iio_pluto_source_0, '0', blocks_head_0, '0']
+- [pdu_tagged_stream_to_pdu_0, pdus, blocks_message_debug_parity, print]
+- [pdu_tagged_stream_to_pdu_0, pdus, zeromq_pub_msg_sink_parity, in]
+- [zeromq_sub_msg_source_0, out, epy_block_0, msg_in]
+
+metadata:
+  file_format: 1

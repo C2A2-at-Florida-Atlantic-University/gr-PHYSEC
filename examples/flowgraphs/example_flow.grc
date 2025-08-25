@@ -1,0 +1,253 @@
+options:
+  parameters:
+    author: ''
+    catch_exceptions: 'True'
+    category: '[GRC Hier Blocks]'
+    cmake_opt: ''
+    comment: ''
+    copyright: ''
+    description: ''
+    gen_cmake: 'On'
+    gen_linking: dynamic
+    generate_options: qt_gui
+    hier_block_src_path: '.:'
+    id: example_flow
+    max_nouts: '0'
+    output_language: python
+    placement: (0,0)
+    qt_qss_theme: ''
+    realtime_scheduling: ''
+    run: 'True'
+    run_command: '{python} -u {filename}'
+    run_options: prompt
+    sizing_mode: fixed
+    thread_safe_setters: ''
+    title: Not titled yet
+    window_size: (1000,1000)
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [8, 8]
+    rotation: 0
+    state: enabled
+
+blocks:
+- name: centerFrequency
+  id: variable
+  parameters:
+    comment: ''
+    value: '2442000000'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [392, 12.0]
+    rotation: 0
+    state: enabled
+- name: samp_rate
+  id: variable
+  parameters:
+    comment: ''
+    value: '32000'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [184, 12]
+    rotation: 0
+    state: enabled
+- name: sampleRate
+  id: variable
+  parameters:
+    comment: ''
+    value: '50000000'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [288, 12.0]
+    rotation: 0
+    state: enabled
+- name: PHYSEC_feature_extraction_block_0
+  id: PHYSEC_feature_extraction_block
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    model_path: /path/to/model.onnx
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [664, 220.0]
+    rotation: 0
+    state: true
+- name: PHYSEC_feature_quantization_block_0
+  id: PHYSEC_feature_quantization_block
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    quantization_method: mean_threshold
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [656, 300.0]
+    rotation: 180
+    state: true
+- name: PHYSEC_parity_generation_block_0
+  id: PHYSEC_parity_generation_block
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    k: '128'
+    key_length: '512'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    n: '255'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [488, 412.0]
+    rotation: 180
+    state: true
+- name: PHYSEC_privacy_amplification_block_0
+  id: PHYSEC_privacy_amplification_block
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    hash_algorithm: sha3_512
+    maxoutbuf: '0'
+    minoutbuf: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [256, 508.0]
+    rotation: 0
+    state: true
+- name: PHYSEC_reconciliation_block_0
+  id: PHYSEC_reconciliation_block
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    k: '128'
+    key_length: '512'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    n: '255'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [240, 332.0]
+    rotation: 180
+    state: true
+- name: PHYSEC_spectrogram_block_0
+  id: PHYSEC_spectrogram_block
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    fft_window: '512'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    vector_size: '8192'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [424, 212.0]
+    rotation: 0
+    state: true
+- name: blocks_file_sink_0
+  id: blocks_file_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    append: 'False'
+    comment: ''
+    file: ''
+    type: byte
+    unbuffered: 'False'
+    vlen: '128'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [744, 484.0]
+    rotation: 0
+    state: true
+- name: blocks_stream_to_vector_0
+  id: blocks_stream_to_vector
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    num_items: '8192'
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [248, 224.0]
+    rotation: 0
+    state: true
+- name: iio_pluto_source_0
+  id: iio_pluto_source
+  parameters:
+    affinity: ''
+    alias: ''
+    bandwidth: '20000000'
+    bbdc: 'True'
+    buffer_size: '32768'
+    comment: ''
+    filter: ''
+    filter_source: '''Auto'''
+    fpass: '0'
+    frequency: centerFrequency
+    fstop: '0'
+    gain1: '''slow_attack'''
+    len_tag_key: packet_len
+    manual_gain1: '64'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    quadrature: 'True'
+    rfdc: 'True'
+    samplerate: sampleRate
+    type: fc32
+    uri: '"ip:192.168.65.254"'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [8, 148.0]
+    rotation: 0
+    state: true
+
+connections:
+- [PHYSEC_feature_extraction_block_0, '0', PHYSEC_feature_quantization_block_0, '0']
+- [PHYSEC_feature_quantization_block_0, '0', PHYSEC_parity_generation_block_0, '0']
+- [PHYSEC_feature_quantization_block_0, '0', PHYSEC_reconciliation_block_0, '0']
+- [PHYSEC_parity_generation_block_0, '0', PHYSEC_reconciliation_block_0, '1']
+- [PHYSEC_privacy_amplification_block_0, '0', blocks_file_sink_0, '0']
+- [PHYSEC_reconciliation_block_0, '0', PHYSEC_privacy_amplification_block_0, '0']
+- [PHYSEC_spectrogram_block_0, '0', PHYSEC_feature_extraction_block_0, '0']
+- [blocks_stream_to_vector_0, '0', PHYSEC_spectrogram_block_0, '0']
+- [iio_pluto_source_0, '0', blocks_stream_to_vector_0, '0']
+
+metadata:
+  file_format: 1
