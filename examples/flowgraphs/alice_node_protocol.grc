@@ -265,9 +265,9 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [32, 236.0]
+    coordinate: [96, 340.0]
     rotation: 0
-    state: enabled
+    state: disabled
 - name: blocks_file_sink_key_0
   id: blocks_file_sink
   parameters:
@@ -283,9 +283,9 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1200, 348.0]
+    coordinate: [1160, 340.0]
     rotation: 180
-    state: disabled
+    state: enabled
 - name: blocks_file_sink_vec
   id: blocks_file_sink
   parameters:
@@ -301,7 +301,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [712, 204.0]
+    coordinate: [720, 220.0]
     rotation: 0
     state: disabled
 - name: blocks_message_debug_0
@@ -365,7 +365,7 @@ blocks:
     bus_structure: null
     coordinate: [1344, 460.0]
     rotation: 0
-    state: true
+    state: disabled
 - name: blocks_null_sink_1
   id: blocks_null_sink
   parameters:
@@ -382,7 +382,7 @@ blocks:
     bus_structure: null
     coordinate: [1000, 464.0]
     rotation: 0
-    state: true
+    state: disabled
 - name: blocks_stream_to_tagged_stream_0
   id: blocks_stream_to_tagged_stream
   parameters:
@@ -438,41 +438,6 @@ blocks:
     coordinate: [1528, 176.0]
     rotation: 180
     state: true
-- name: epy_block_0
-  id: epy_block
-  parameters:
-    _source_code: "from gnuradio import gr\nimport pmt\n\nclass blk(gr.basic_block):\n\
-      \    def __init__(self):\n        gr.basic_block.__init__(self, name='Alice\
-      \ Controller', in_sig=None, out_sig=None)\n        self.message_port_register_in(pmt.intern('msg_in'))\n\
-      \        self.message_port_register_out(pmt.intern('tx_mute'))\n        self.message_port_register_out(pmt.intern('out'))\n\
-      \        self.set_msg_handler(pmt.intern('msg_in'), self.handle_ctrl)\n\n  \
-      \  def handle_ctrl(self, msg):\n        try:\n            val = pmt.symbol_to_string(msg)\
-      \ if pmt.is_symbol(msg) else str(pmt.to_python(msg))\n        except Exception:\n\
-      \            val = 'unknown'\n        if 'start_tx' in val:\n            self.message_port_pub(pmt.intern('tx_mute'),\
-      \ pmt.to_pmt(False))\n            self.message_port_pub(pmt.intern('out'), pmt.intern('alice_start_tx'))\n\
-      \        elif 'stop_tx' in val:\n            self.message_port_pub(pmt.intern('tx_mute'),\
-      \ pmt.to_pmt(True))\n            self.message_port_pub(pmt.intern('out'), pmt.intern('alice_stop_tx'))\n\
-      \        elif 'collect' in val:\n            self.message_port_pub(pmt.intern('out'),\
-      \ pmt.intern('alice_collecting'))\n        elif 'quantized' in val:\n      \
-      \      self.message_port_pub(pmt.intern('out'), pmt.intern('alice_quantized'))\n\
-      \        elif 'parity_sent' in val:\n            self.message_port_pub(pmt.intern('out'),\
-      \ pmt.intern('alice_parity_sent'))\n        elif 'privacy_done' in val:\n  \
-      \          self.message_port_pub(pmt.intern('out'), pmt.intern('alice_privacy_done'))\n\
-      \        else:\n            self.message_port_pub(pmt.intern('out'), pmt.intern('alice_unknown'))\n"
-    affinity: ''
-    alias: ''
-    comment: ''
-    maxoutbuf: '0'
-    minoutbuf: '0'
-  states:
-    _io_cache: ('Alice Controller', 'blk', [], [('msg_in', 'message', 1)], [('out',
-      'message', 1), ('tx_mute', 'message', 1)], '', [])
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [320, 560.0]
-    rotation: 0
-    state: disabled
 - name: epy_block_ctrl
   id: epy_block
   parameters:
@@ -571,7 +536,7 @@ blocks:
     bus_structure: null
     coordinate: [864, 292.0]
     rotation: 0
-    state: disabled
+    state: enabled
 - name: iio_pluto_source_0
   id: iio_pluto_source
   parameters:
@@ -600,9 +565,9 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [16, 172.0]
+    coordinate: [48, 164.0]
     rotation: 0
-    state: disabled
+    state: enabled
 - name: pdu_tagged_stream_to_pdu_0
   id: pdu_tagged_stream_to_pdu
   parameters:
