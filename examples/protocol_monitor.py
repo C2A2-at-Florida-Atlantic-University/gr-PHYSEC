@@ -13,7 +13,6 @@ import os
 import numpy as np
 import threading
 
-# Optional deps for external trigger publishing to nodes (ZeroMQ + PMT)
 try:
     import zmq
     import pmt
@@ -75,10 +74,12 @@ class SimplePushMonitor:
         self.data_server_running = True
         self.message_count = 0  # Track total messages received
         
+        
         # Trigger publisher (ZeroMQ PUB) to start runs
         self.trigger_pub = None
-        self.trigger_pub_addr = os.getenv('TRIGGER_BIND_ADDR', 'tcp://*:9103')
+        self.trigger_pub_addr = os.getenv('TRIGGER_BIND_ADDR', 'tcp://192.168.0.142:9103')
         self.trigger_ready = False
+        self.auto_trigger = False
         
         print(f"🔧 Starting Simple Push-Only PHYSEC Monitor...")
         print(f"📡 Will receive data from Alice: {alice_ip}")
@@ -96,40 +97,7 @@ class SimplePushMonitor:
             print("⚠️  Visualization disabled - text-only monitoring")
         
         print("⏳ Starting data collection server...")
-
-    def _start_trigger_publisher(self):
-        """Initialize ZMQ PUB to send 'start' triggers to nodes."""
-        if not ZMQ_AVAILABLE:
-            print("⚠️  ZeroMQ/PMT not available - will not auto-trigger runs")
-            return
-        try:
-            ctx = zmq.Context.instance()
-            pub = ctx.socket(zmq.PUB)
-            bind_addr = self.trigger_pub_addr
-            pub.bind(bind_addr)
-            self.trigger_pub = pub
-            self.trigger_ready = True
-            print(f"✅ Trigger publisher bound at {bind_addr}")
-        except Exception as e:
-            print(f"❌ Failed to start trigger publisher: {e}")
-            self.trigger_pub = None
-            self.trigger_ready = False
-
-    def _send_trigger_start(self, delay_s: float = 0.5):
-        """Send a single 'start' trigger after optional delay."""
-        if not (ZMQ_AVAILABLE and self.trigger_pub and self.trigger_ready):
-            return
-        def _send():
-            try:
-                if delay_s > 0:
-                    time.sleep(delay_s)
-                msg = pmt.serialize_str(pmt.intern('start'))
-                self.trigger_pub.send(msg)
-                print("📣 Sent trigger: start")
-            except Exception as e:
-                print(f"⚠️  Failed to send trigger: {e}")
-        threading.Thread(target=_send, daemon=True).start()
-
+        
     def _normalize_protocol_step(self, node_name, step_value):
         """Normalize incoming protocol step strings across nodes.
 
@@ -172,12 +140,45 @@ class SimplePushMonitor:
         except Exception:
             return None
 
+    def _start_trigger_publisher(self):
+        """Initialize ZMQ PUB to send 'start' triggers to nodes."""
+        if not ZMQ_AVAILABLE:
+            print("⚠️  ZeroMQ/PMT not available - will not auto-trigger runs")
+            return
+        try:
+            ctx = zmq.Context.instance()
+            pub = ctx.socket(zmq.PUB)
+            bind_addr = self.trigger_pub_addr
+            pub.bind(bind_addr)
+            self.trigger_pub = pub
+            self.trigger_ready = True
+            print(f"✅ Trigger publisher bound at {bind_addr}")
+        except Exception as e:
+            print(f"❌ Failed to start trigger publisher: {e}")
+            self.trigger_pub = None
+            self.trigger_ready = False
+
+    def _send_trigger_start(self, delay_s: float = 0.5):
+        """Send a single 'start' trigger after optional delay."""
+        if not (ZMQ_AVAILABLE and self.trigger_pub and self.trigger_ready):
+            return
+        def _send():
+            try:
+                if delay_s > 0:
+                    time.sleep(delay_s)
+                msg = pmt.serialize_str(pmt.intern('start'))
+                self.trigger_pub.send(msg)
+                print("📣 Sent trigger: start")
+            except Exception as e:
+                print(f"⚠️  Failed to send trigger: {e}")
+        threading.Thread(target=_send, daemon=True).start()
+
     def start_data_collection_server(self):
         """Start server to receive pushed data from nodes"""
         try:
             self.data_server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.data_server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            self.data_server_socket.bind(('0.0.0.0', 9999))  # Use port 9999 for data collection
+            self.data_server_socket.bind(('192.168.0.142', 9999))  # Use port 9999 for data collection
             self.data_server_socket.listen(5)
             
             print(f"✅ Data collection server listening on port 9999")
@@ -440,10 +441,10 @@ class SimplePushMonitor:
                                 # Reset timing for next run
                                 self.timing = {'start_ts': None, 'alice_done_ts': None, 'bob_done_ts': None}
                                 self.pending_bdr = None
-                                
-                                # Auto-trigger next run shortly after completion
-                                self._send_trigger_start(delay_s=0.5)
 
+                                # Auto-trigger next run shortly after completion
+                                if self.auto_trigger:
+                                    self._send_trigger_start(delay_s=0.5)
                         if node_name == "Alice":
                             self.alice_protocol_step = normalized
                             print(f"🔄 Alice protocol step: {self.alice_protocol_step}")
@@ -548,8 +549,9 @@ class SimplePushMonitor:
         server_thread.start()
         
         # Initialize trigger publisher and send initial start after a brief delay
-        self._start_trigger_publisher()
-        self._send_trigger_start(delay_s=1.0)
+        if self.auto_trigger:
+            self._start_trigger_publisher()
+            self._send_trigger_start(delay_s=1.0)
         
         try:
             while self.data_server_running:
