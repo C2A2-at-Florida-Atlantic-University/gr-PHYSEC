@@ -526,8 +526,12 @@ blocks:
       \ pmt.intern('alice_evt_'+val))\n    def handle_evt(self, msg):\n        val\
       \ = pmt.symbol_to_string(msg) if pmt.is_symbol(msg) else str(pmt.to_python(msg))\n\
       \        if val == 'rx_collected' and self.state == 'collecting':\n        \
-      \    self.message_port_pub(pmt.intern('tx_mute'), pmt.to_pmt(False))\n     \
-      \       self.message_port_pub(pmt.intern('peer'), pmt.intern('alice_tx_start'))\n\
+      \    # Optional delay before switching to TX to let Bob prepare RX\n       \
+      \     try:\n                rx2tx_delay_ms = float(os.getenv('PHYSEC_RX2TX_DELAY_MS',\
+      \ '10'))\n            except Exception:\n                rx2tx_delay_ms = 10.0\n\
+      \            if rx2tx_delay_ms > 0:\n                time.sleep(rx2tx_delay_ms\
+      \ / 1000.0)\n            self.message_port_pub(pmt.intern('tx_mute'), pmt.to_pmt(False))\n\
+      \            self.message_port_pub(pmt.intern('peer'), pmt.intern('alice_tx_start'))\n\
       \            self.message_port_pub(pmt.intern('out'), pmt.intern('alice_tx_start'))\n\
       \            self.state = 'txing'\n"
     affinity: ''
@@ -536,7 +540,7 @@ blocks:
     maxoutbuf: '0'
     minoutbuf: '0'
   states:
-    _io_cache: ('Alice Controller', 'blk', [], [('evt_in', 'message', 1), ('msg_in',
+    _io_cache: ('Alice Controller', 'blk', [], [('msg_in', 'message', 1), ('evt_in',
       'message', 1)], [('rx_ctrl', 'message', 1), ('peer', 'message', 1), ('out',
       'message', 1), ('tx_mute', 'message', 1)], '', [])
     bus_sink: false

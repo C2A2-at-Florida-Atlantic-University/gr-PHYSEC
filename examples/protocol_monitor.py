@@ -64,6 +64,8 @@ class SimplePushMonitor:
             'bob_done_ts': None,
         }
         self.pending_bdr = None  # Hold BDR until timing is computed to avoid duplicate points
+        # Track reconciliation results per node for success metric
+        self.reconcile_results = {"Alice": None, "Bob": None}
         
         # Statistics storage
         self.alice_stats = {}
@@ -420,6 +422,11 @@ class SimplePushMonitor:
                             print(f"⏱️  Timing start recorded at {now_ts:.3f}")
                         # Consider run "done" when reconciliation finishes (ok or fail)
                         if step_base in ("reconcile_ok", "reconcile_fail") or normalized == "Complete":
+                            # Record success/failure if explicitly provided
+                            if step_base == "reconcile_ok":
+                                self.reconcile_results[node_name] = True
+                            elif step_base == "reconcile_fail":
+                                self.reconcile_results[node_name] = False
                             if node_name == "Alice":
                                 self.timing['alice_done_ts'] = now_ts
                             elif node_name == "Bob":
@@ -434,13 +441,26 @@ class SimplePushMonitor:
                                         bdr_value = self.pending_bdr if self.pending_bdr is not None else 0.0
                                         if bdr_value == 0.0 and self.alice_stats and isinstance(self.alice_stats.get('bdr'), (int, float)):
                                             bdr_value = float(self.alice_stats.get('bdr'))
-                                        self.visualizer.add_run_statistics(bdr_value, True, int(elapsed*1000))
+                                        # Determine success: require both nodes to report reconcile_ok if known
+                                        alice_ok = self.reconcile_results.get("Alice")
+                                        bob_ok = self.reconcile_results.get("Bob")
+                                        success = None
+                                        if alice_ok is not None and bob_ok is not None:
+                                            success = bool(alice_ok and bob_ok)
+                                        elif alice_ok is not None:
+                                            success = bool(alice_ok)
+                                        elif bob_ok is not None:
+                                            success = bool(bob_ok)
+                                        else:
+                                            success = True  # default to True if unknown
+                                        self.visualizer.add_run_statistics(bdr_value, success, int(elapsed*1000))
                                         print(f"🎨 Updated timing in visualization")
                                     except Exception as e:
                                         print(f"⚠️  Visualization timing update error: {e}")
                                 # Reset timing for next run
                                 self.timing = {'start_ts': None, 'alice_done_ts': None, 'bob_done_ts': None}
                                 self.pending_bdr = None
+                                self.reconcile_results = {"Alice": None, "Bob": None}
 
                                 # Auto-trigger next run shortly after completion
                                 if self.auto_trigger:

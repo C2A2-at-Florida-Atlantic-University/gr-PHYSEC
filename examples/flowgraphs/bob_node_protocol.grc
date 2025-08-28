@@ -495,13 +495,22 @@ blocks:
       \        self.message_port_pub(pmt.intern('tx_mute'), pmt.to_pmt(True))\n  \
       \      self.state = 'idle'\n    def handle_msg(self, msg):\n        val = pmt.symbol_to_string(msg)\
       \ if pmt.is_symbol(msg) else str(pmt.to_python(msg))\n        if val == 'start'\
-      \ and self.state == 'idle':\n            self.message_port_pub(pmt.intern('peer'),\
-      \ pmt.intern('probe_req'))\n            self.message_port_pub(pmt.intern('tx_mute'),\
+      \ and self.state == 'idle':\n            # Ask Alice to prepare RX for Bob's\
+      \ TX probe\n            self.message_port_pub(pmt.intern('peer'), pmt.intern('probe_req'))\n\
+      \            # Optional delay to allow Alice RX to arm\n            try:\n \
+      \               tx_start_delay_ms = float(os.getenv('PHYSEC_TX_START_DELAY_MS',\
+      \ '0'))\n            except Exception:\n                tx_start_delay_ms =\
+      \ 0.0\n            if tx_start_delay_ms > 0:\n                time.sleep(tx_start_delay_ms\
+      \ / 1000.0)\n            # Enable Bob TX and announce\n            self.message_port_pub(pmt.intern('tx_mute'),\
       \ pmt.to_pmt(False))\n            self.message_port_pub(pmt.intern('out'), pmt.intern('bob_tx_start'))\n\
       \            self.state = 'txing'\n        elif val == 'alice_tx_start' and\
-      \ self.state in ('txing','tx_done'):\n            time.sleep(0.01)\n       \
-      \     self.message_port_pub(pmt.intern('rx_ctrl'), pmt.intern('start'))\n  \
-      \          self.message_port_pub(pmt.intern('out'), pmt.intern('bob_collecting'))\n\
+      \ self.state in ('txing','tx_done'):\n            # Mute Bob TX immediately,\
+      \ then start RX after optional delay\n            self.message_port_pub(pmt.intern('tx_mute'),\
+      \ pmt.to_pmt(True))\n            try:\n                rx_delay_ms = float(os.getenv('PHYSEC_RX_DELAY_MS',\
+      \ '10'))\n            except Exception:\n                rx_delay_ms = 10.0\n\
+      \            if rx_delay_ms > 0:\n                time.sleep(rx_delay_ms / 1000.0)\n\
+      \            self.message_port_pub(pmt.intern('rx_ctrl'), pmt.intern('start'))\n\
+      \            self.message_port_pub(pmt.intern('out'), pmt.intern('bob_collecting'))\n\
       \            self.state = 'collecting'\n        elif val == 'parity_recv':\n\
       \            self.message_port_pub(pmt.intern('out'), pmt.intern('bob_parity_recv'))\n\
       \        elif val in ('reconcile_ok','reconcile_fail'):\n            self.message_port_pub(pmt.intern('out'),\
@@ -520,7 +529,7 @@ blocks:
     maxoutbuf: '0'
     minoutbuf: '0'
   states:
-    _io_cache: ('Bob Controller', 'blk', [], [('evt_in', 'message', 1), ('msg_in',
+    _io_cache: ('Bob Controller', 'blk', [], [('msg_in', 'message', 1), ('evt_in',
       'message', 1)], [('rx_ctrl', 'message', 1), ('peer', 'message', 1), ('out',
       'message', 1), ('tx_mute', 'message', 1)], '', [])
     bus_sink: false
