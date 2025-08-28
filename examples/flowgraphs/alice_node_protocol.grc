@@ -209,7 +209,7 @@ blocks:
     comment: ''
     maxoutbuf: '0'
     minoutbuf: '0'
-    model_path: /workspace/siwn/gr-PHYSEC/examples/QExtractor.onnx
+    model_path: /workspace/gr-PHYSEC/examples/QExtractor.onnx
   states:
     bus_sink: false
     bus_source: false
@@ -428,7 +428,7 @@ blocks:
     bus_structure: null
     coordinate: [992, 504.0]
     rotation: 0
-    state: disabled
+    state: enabled
 - name: blocks_mute_xx_0
   id: blocks_mute_xx
   parameters:
