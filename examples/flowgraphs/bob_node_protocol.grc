@@ -209,7 +209,7 @@ blocks:
     comment: ''
     maxoutbuf: '0'
     minoutbuf: '0'
-    model_path: /workspace/siwn/gr-PHYSEC/examples/QExtractor.onnx
+    model_path: /workspace/gr-PHYSEC/examples/QExtractor.onnx
   states:
     bus_sink: false
     bus_source: false
@@ -428,7 +428,7 @@ blocks:
     bus_structure: null
     coordinate: [1056, 512.0]
     rotation: 0
-    state: disabled
+    state: enabled
 - name: blocks_mute_xx_0
   id: blocks_mute_xx
   parameters:
@@ -537,7 +537,7 @@ blocks:
       \ node_name=\"Bob\"):\n        gr.sync_block.__init__(self, name='Monitor Push\
       \ IQ', in_sig=[(np.complex64, int(vlen))], out_sig=None)\n        self.vlen\
       \ = int(vlen)\n        self.node_name = node_name\n        self.host = os.getenv('MONITOR_HOST',\
-      \ '127.0.0.1')\n        self.port = int(os.getenv('MONITOR_PORT', '9999'))\n\
+      \ '192.168.0.142')\n        self.port = int(os.getenv('MONITOR_PORT', '9999'))\n\
       \        self.sock = None\n        self._lock = threading.Lock()\n        self._connect()\n\
       \n    def _connect(self):\n        try:\n            s = socket.socket(socket.AF_INET,\
       \ socket.SOCK_STREAM)\n            s.settimeout(2.0)\n            s.connect((self.host,\
@@ -577,7 +577,7 @@ blocks:
       , count_run_on=\"bob_tx_start\"):\n        gr.basic_block.__init__(self, name='Monitor\
       \ Push (msg)', in_sig=None, out_sig=None)\n        self.node_name = node_name\n\
       \        self.count_run_on = str(count_run_on) if count_run_on else \"\"\n \
-      \       self.host = os.getenv('MONITOR_HOST', '127.0.0.1')\n        self.port\
+      \       self.host = os.getenv('MONITOR_HOST', '192.168.0.142')\n        self.port\
       \ = int(os.getenv('MONITOR_PORT', '9999'))\n        self.run_number = 0\n  \
       \      self.sock = None\n        self._lock = threading.Lock()\n        self._connect()\n\
       \        self.message_port_register_in(pmt.intern('in'))\n        self.set_msg_handler(pmt.intern('in'),\
@@ -621,7 +621,7 @@ blocks:
       \ node_name=\"Bob\"):\n        gr.sync_block.__init__(self, name='Monitor Push\
       \ Quantized', in_sig=[(np.uint8, int(vlen))], out_sig=None)\n        self.vlen\
       \ = int(vlen)\n        self.node_name = node_name\n        self.host = os.getenv('MONITOR_HOST',\
-      \ '127.0.0.1')\n        self.port = int(os.getenv('MONITOR_PORT', '9999'))\n\
+      \ '192.168.0.142')\n        self.port = int(os.getenv('MONITOR_PORT', '9999'))\n\
       \        self.sock = None\n        self._lock = threading.Lock()\n        self._connect()\n\
       \n    def _connect(self):\n        try:\n            s = socket.socket(socket.AF_INET,\
       \ socket.SOCK_STREAM)\n            s.settimeout(2.0)\n            s.connect((self.host,\
@@ -661,7 +661,7 @@ blocks:
       \ threading, os\n\nclass blk(gr.sync_block):\n    def __init__(self, node_name=\"\
       Bob\"):\n        gr.sync_block.__init__(self, name='Monitor Push Spectrogram',\
       \ in_sig=[(np.float32, (6324))], out_sig=None)\n        self.node_name = node_name\n\
-      \        self.host = os.getenv('MONITOR_HOST', '127.0.0.1')\n        self.port\
+      \        self.host = os.getenv('MONITOR_HOST', '192.168.0.142')\n        self.port\
       \ = int(os.getenv('MONITOR_PORT', '9999'))\n        self.sock = None\n     \
       \   self._lock = threading.Lock()\n        self._connect()\n\n    def _connect(self):\n\
       \        try:\n            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)\n\
