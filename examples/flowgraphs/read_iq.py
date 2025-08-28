@@ -26,29 +26,33 @@ def summarize(samples: np.ndarray, samp_rate: Optional[float]) -> None:
         print("No samples loaded.")
         return
     pwr = np.mean(np.abs(samples) ** 2)
+    max_pwr = np.max(np.abs(samples) ** 2)
+    max_pwr_idx = np.argmax(np.abs(samples) ** 2)
+    min_pwr = np.min(np.abs(samples) ** 2)
     print(f"Loaded complex samples: {n}")
     if samp_rate:
         dur = n / float(samp_rate)
         print(f"Sample rate: {samp_rate:.3f} Sa/s  (~{dur:.3f}s)")
     print(f"Mean power: {pwr:.6f}")
+    print(f"Max power: {max_pwr:.6f}")
+    print(f"Min power: {min_pwr:.6f}")
     print(f"First 5 samples: {samples[:5]}")
+    return max_pwr_idx
 
 
-def plot_wave(samples: np.ndarray, samp_rate: Optional[float], num: int) -> None:
+def plot_wave(samples: np.ndarray, samp_rate: Optional[float], file_path: str) -> None:
     if not HAVE_PLOT:
         print("matplotlib not available; skipping plots.")
         return
-    if num is None or num <= 0:
-        num = samples.size
-    else:
-        num = min(num, samples.size)
-    t = np.arange(num)
+    
+    t = np.arange(samples.size)
     fig, ax = plt.subplots(2, 1, figsize=(10, 6))
     ax[0].plot(t, samples.real, label="I")
     ax[0].plot(t, samples.imag, label="Q")
     ax[0].set_ylabel("Amplitude")
     ax[0].legend()
     ax[0].grid(True, alpha=0.3)
+    ax[0].set_title("Time-domain signal from File: " + file_path)
     # Simple PSD/periodogram
     nfft = 4096
     if samples.size < nfft:
@@ -75,7 +79,6 @@ def main() -> int:
     ap.add_argument("--path", required=True, help="Path to .iq file (binary)")
     ap.add_argument("--samp-rate", type=float, default=None, help="Sample rate (for timing/PSD)")
     ap.add_argument("--plot", action="store_true", help="Plot time-domain and PSD")
-    ap.add_argument("--plot-n", type=int, default=0, help="Number of samples to plot (0 = all)")
     args = ap.parse_args()
 
     if not os.path.isfile(args.path):
@@ -83,11 +86,15 @@ def main() -> int:
         return 1
     
     samples = read_iq(args.path)
-
-    summarize(samples, args.samp_rate)
+    
+    max_pwr_idx = summarize(samples, args.samp_rate)
+    
+    max_samples = 100000
+    if samples.size > max_samples:
+        samples = samples[max_pwr_idx-max_samples//2:max_pwr_idx+max_samples//2]
 
     if args.plot:
-        plot_wave(samples, args.samp_rate, args.plot_n)
+        plot_wave(samples, args.samp_rate, args.path)
 
     return 0
 

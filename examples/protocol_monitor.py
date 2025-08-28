@@ -13,6 +13,14 @@ import os
 import numpy as np
 import threading
 
+# Optional deps for external trigger publishing to nodes (ZeroMQ + PMT)
+try:
+    import zmq
+    import pmt
+    ZMQ_AVAILABLE = True
+except Exception:
+    ZMQ_AVAILABLE = False
+
 # Add current directory to path for imports
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -51,6 +59,12 @@ class SimplePushMonitor:
         self.alice_protocol_step = "Idle"
         self.bob_protocol_step = "Idle"
         self.current_run = 0
+        self.timing = {
+            'start_ts': None,
+            'alice_done_ts': None,
+            'bob_done_ts': None,
+        }
+        self.pending_bdr = None  # Hold BDR until timing is computed to avoid duplicate points
         
         # Statistics storage
         self.alice_stats = {}
@@ -60,6 +74,11 @@ class SimplePushMonitor:
         self.data_server_socket = None
         self.data_server_running = True
         self.message_count = 0  # Track total messages received
+        
+        # Trigger publisher (ZeroMQ PUB) to start runs
+        self.trigger_pub = None
+        self.trigger_pub_addr = os.getenv('TRIGGER_BIND_ADDR', 'tcp://*:9103')
+        self.trigger_ready = False
         
         print(f"🔧 Starting Simple Push-Only PHYSEC Monitor...")
         print(f"📡 Will receive data from Alice: {alice_ip}")
@@ -78,6 +97,81 @@ class SimplePushMonitor:
         
         print("⏳ Starting data collection server...")
 
+    def _start_trigger_publisher(self):
+        """Initialize ZMQ PUB to send 'start' triggers to nodes."""
+        if not ZMQ_AVAILABLE:
+            print("⚠️  ZeroMQ/PMT not available - will not auto-trigger runs")
+            return
+        try:
+            ctx = zmq.Context.instance()
+            pub = ctx.socket(zmq.PUB)
+            bind_addr = self.trigger_pub_addr
+            pub.bind(bind_addr)
+            self.trigger_pub = pub
+            self.trigger_ready = True
+            print(f"✅ Trigger publisher bound at {bind_addr}")
+        except Exception as e:
+            print(f"❌ Failed to start trigger publisher: {e}")
+            self.trigger_pub = None
+            self.trigger_ready = False
+
+    def _send_trigger_start(self, delay_s: float = 0.5):
+        """Send a single 'start' trigger after optional delay."""
+        if not (ZMQ_AVAILABLE and self.trigger_pub and self.trigger_ready):
+            return
+        def _send():
+            try:
+                if delay_s > 0:
+                    time.sleep(delay_s)
+                msg = pmt.serialize_str(pmt.intern('start'))
+                self.trigger_pub.send(msg)
+                print("📣 Sent trigger: start")
+            except Exception as e:
+                print(f"⚠️  Failed to send trigger: {e}")
+        threading.Thread(target=_send, daemon=True).start()
+
+    def _normalize_protocol_step(self, node_name, step_value):
+        """Normalize incoming protocol step strings across nodes.
+
+        - Strips node-specific prefixes like 'alice_' and 'bob_'
+        - Maps common aliases to canonical labels
+        - Ignores PMT boolean prints like '#t' and '#f'
+        """
+        try:
+            raw = str(step_value) if step_value is not None else ""
+            if raw in ("#t", "#f", "", "None"):
+                return None
+
+            # Strip node prefixes
+            if raw.startswith("alice_"):
+                raw = raw[len("alice_"):]
+            elif raw.startswith("bob_"):
+                raw = raw[len("bob_"):]
+
+            # Map raw tokens to the visualizer's canonical step labels
+            # Visualizer expects: ["Idle","Key Request","Probe TX","Sample Collection","PHYSEC Processing","Parity Generation","Reconciliation","Privacy Amplification","Key Exchange","Complete"]
+            step_map = {
+                "probe_req": "Key Request",
+                "accept": "Key Request",
+                "start": "Key Request",  # RX gate start -> sampling begins
+                "collecting": "Sample Collection",
+                "rx_collected": "Sample Collection",
+                "collect_done": "Sample Collection",
+                "tx_start": "Probe TX",
+                "tx_stop": "Probe TX",
+                "processing": "PHYSEC Processing",
+                "parity": "Parity Generation",
+                "parity_received": "Reconciliation",
+                "parity_recv": "Reconciliation",
+                "reconcile_ok": "Complete",
+                "reconcile_fail": "Complete",
+                "exchange": "Key Exchange",
+                "done": "Complete",
+            }
+            return step_map.get(raw, raw)
+        except Exception:
+            return None
+
     def start_data_collection_server(self):
         """Start server to receive pushed data from nodes"""
         try:
@@ -92,7 +186,8 @@ class SimplePushMonitor:
                 try:
                     client_socket, addr = self.data_server_socket.accept()
                     print(f"📡 Data connection from {addr}")
-                    self.handle_data_connection(client_socket, addr)
+                    t = threading.Thread(target=self.handle_data_connection, args=(client_socket, addr), daemon=True)
+                    t.start()
                 except Exception as e:
                     if self.data_server_running:
                         print(f"❌ Data server error: {e}")
@@ -216,12 +311,18 @@ class SimplePushMonitor:
                         print(f"   Data type: {type(data)}, Data: {str(data)[:100]}...")
                 
                 elif data_type == "spectrogram":
-                    # Convert string representation back to numpy array
+                    # Convert back to numpy array and reshape if needed
                     try:
                         if isinstance(data, str):
                             spec_data = np.array(eval(data), dtype=np.float32)
                         else:
                             spec_data = np.array(data, dtype=np.float32)
+
+                        # Accept either 2D (204x31) or flattened length 6324
+                        if spec_data.ndim == 1 and spec_data.size == 204*31:
+                            spec_data = spec_data.reshape((204, 31))
+                        elif spec_data.ndim != 2:
+                            print(f"⚠️  Unexpected spectrogram shape from {node_name}: {spec_data.shape}")
                             
                         if node_name == "Alice":
                             self.alice_spectrogram_data = spec_data
@@ -292,24 +393,63 @@ class SimplePushMonitor:
                         self.bob_stats = data
                         print(f"✅ Bob statistics: Run {data.get('run_number')}, BDR: {data.get('bdr', 'N/A'):.4f}")
                     
-                    # Update visualization with statistics
-                    if self.visualizer and data.get('bdr') is not None:
-                        self.visualizer.add_run_statistics(
-                            data.get('bdr'),
-                            data.get('success', True),
-                            data.get('timing_ms')
-                        )
-                        # Mark that visualization needs update (don't call from thread)
-                        print(f"🎨 Updated {node_name} statistics visualization")
+                    # Do not add a point yet; wait for timing to be computed to avoid duplicates
+                    if data.get('bdr') is not None:
+                        self.pending_bdr = float(data.get('bdr'))
+                        print(f"⏳ Stored pending BDR from {node_name}: {self.pending_bdr:.4f}")
                 
                 elif data_type == "protocol_step":
-                    # Update protocol step tracking
-                    if node_name == "Alice":
-                        self.alice_protocol_step = data.get("step", "Idle")
-                        print(f"🔄 Alice protocol step: {self.alice_protocol_step}")
-                    elif node_name == "Bob":
-                        self.bob_protocol_step = data.get("step", "Idle")
-                        print(f"🔄 Bob protocol step: {self.bob_protocol_step}")
+                    # Normalize and update protocol step tracking
+                    step_raw = str(data.get("step") or "")
+                    normalized = self._normalize_protocol_step(node_name, step_raw)
+                    if normalized is None:
+                        print(f"⚠️  Ignored non-informative step from {node_name}: {data.get('step')}")
+                    else:
+                        # Derive base token without node prefix for timing/state logic
+                        step_base = step_raw
+                        if step_base.startswith("alice_"):
+                            step_base = step_base[len("alice_"):]
+                        elif step_base.startswith("bob_"):
+                            step_base = step_base[len("bob_"):]
+
+                        # Timing capture: mark start on Bob tx_start
+                        now_ts = time.time()
+                        if node_name == "Bob" and step_base == "tx_start" and self.timing['start_ts'] is None:
+                            self.timing['start_ts'] = now_ts
+                            print(f"⏱️  Timing start recorded at {now_ts:.3f}")
+                        # Consider run "done" when reconciliation finishes (ok or fail)
+                        if step_base in ("reconcile_ok", "reconcile_fail") or normalized == "Complete":
+                            if node_name == "Alice":
+                                self.timing['alice_done_ts'] = now_ts
+                            elif node_name == "Bob":
+                                self.timing['bob_done_ts'] = now_ts
+                            # If both done, compute elapsed
+                            if self.timing['start_ts'] and self.timing['alice_done_ts'] and self.timing['bob_done_ts']:
+                                elapsed = max(self.timing['alice_done_ts'], self.timing['bob_done_ts']) - self.timing['start_ts']
+                                print(f"⏱️  Elapsed time: {elapsed*1000:.1f} ms")
+                                if self.visualizer:
+                                    try:
+                                        # Prefer pending BDR computed from quantized bits; fallback to stored stats; else 0.0
+                                        bdr_value = self.pending_bdr if self.pending_bdr is not None else 0.0
+                                        if bdr_value == 0.0 and self.alice_stats and isinstance(self.alice_stats.get('bdr'), (int, float)):
+                                            bdr_value = float(self.alice_stats.get('bdr'))
+                                        self.visualizer.add_run_statistics(bdr_value, True, int(elapsed*1000))
+                                        print(f"🎨 Updated timing in visualization")
+                                    except Exception as e:
+                                        print(f"⚠️  Visualization timing update error: {e}")
+                                # Reset timing for next run
+                                self.timing = {'start_ts': None, 'alice_done_ts': None, 'bob_done_ts': None}
+                                self.pending_bdr = None
+                                
+                                # Auto-trigger next run shortly after completion
+                                self._send_trigger_start(delay_s=0.5)
+
+                        if node_name == "Alice":
+                            self.alice_protocol_step = normalized
+                            print(f"🔄 Alice protocol step: {self.alice_protocol_step}")
+                        elif node_name == "Bob":
+                            self.bob_protocol_step = normalized
+                            print(f"🔄 Bob protocol step: {self.bob_protocol_step}")
                     
                     # Update visualization with protocol steps
                     if self.visualizer:
@@ -354,15 +494,9 @@ class SimplePushMonitor:
                 
                 print(f"🎯 BDR Calculated: {bdr:.4f} (Alice: {len(alice_bits)} bits, Bob: {len(bob_bits)} bits)")
                 
-                # Update visualization with calculated BDR
-                if self.visualizer:
-                    # Use placeholder values for now
-                    success = True
-                    timing_ms = None
-                    
-                    self.visualizer.add_run_statistics(bdr, success, timing_ms)
-                    # Mark that visualization needs update (don't call from thread)
-                    print(f"🎨 Updated BDR visualization")
+                # Store BDR to be emitted together with timing to avoid duplicate points
+                self.pending_bdr = float(bdr)
+                print(f"💾 Stored pending BDR for next timing update: {self.pending_bdr:.4f}")
                 
                 # Clear the bits to avoid recalculating
                 self.alice_quantized_bits = None
@@ -412,6 +546,10 @@ class SimplePushMonitor:
         # Start data collection server in background
         server_thread = threading.Thread(target=self.start_data_collection_server, daemon=True)
         server_thread.start()
+        
+        # Initialize trigger publisher and send initial start after a brief delay
+        self._start_trigger_publisher()
+        self._send_trigger_start(delay_s=1.0)
         
         try:
             while self.data_server_running:

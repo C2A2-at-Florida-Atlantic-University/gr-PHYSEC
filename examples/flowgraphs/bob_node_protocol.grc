@@ -18,7 +18,7 @@ options:
     qt_qss_theme: ''
     realtime_scheduling: ''
     run: 'False'
-    run_command: '{python} -u {filename}'
+    run_command: env PHYSEC_RX_DELAY_MS=300 {python} -u {filename}
     run_options: prompt
     sizing_mode: fixed
     thread_safe_setters: ''
@@ -42,7 +42,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [416, 92.0]
+    coordinate: [288, 92.0]
     rotation: 0
     state: enabled
 - name: monitor_addr
@@ -54,9 +54,21 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1000, 12.0]
+    coordinate: [888, 12.0]
     rotation: 0
     state: enabled
+- name: monitor_addr
+  id: variable
+  parameters:
+    comment: ZeroMQ address for status out
+    value: '"tcp://127.0.0.1:9101"'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [696, 92.0]
+    rotation: 0
+    state: disabled
 - name: parity_len
   id: variable
   parameters:
@@ -66,7 +78,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [224, 92.0]
+    coordinate: [192, 92.0]
     rotation: 0
     state: enabled
 - name: parity_sub_addr
@@ -78,9 +90,21 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1176, 12.0]
+    coordinate: [1056, 12.0]
     rotation: 0
     state: enabled
+- name: parity_sub_addr
+  id: variable
+  parameters:
+    comment: ZeroMQ address for parity SUB
+    value: '"tcp://127.0.0.1:9200"'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [856, 92.0]
+    rotation: 0
+    state: disabled
 - name: peer_ctrl_addr
   id: variable
   parameters:
@@ -90,9 +114,21 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [640, 12.0]
+    coordinate: [536, 12.0]
     rotation: 0
     state: enabled
+- name: peer_ctrl_addr
+  id: variable
+  parameters:
+    comment: ZeroMQ address for control in
+    value: '"tcp://127.0.0.1:9101"'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [376, 92.0]
+    rotation: 0
+    state: disabled
 - name: peer_ctrl_pub_addr
   id: variable
   parameters:
@@ -102,7 +138,31 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [816, 12.0]
+    coordinate: [712, 12.0]
+    rotation: 0
+    state: enabled
+- name: peer_ctrl_pub_addr
+  id: variable
+  parameters:
+    comment: ZeroMQ address for control out
+    value: '"tcp://127.0.0.1:9102"'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [536, 92.0]
+    rotation: 0
+    state: disabled
+- name: peer_trigger_addr
+  id: variable
+  parameters:
+    comment: ZeroMQ address for parity SUB
+    value: '"tcp://192.168.0.142:9103"'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1224, 12.0]
     rotation: 0
     state: enabled
 - name: sample_rate
@@ -126,7 +186,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [304, 12.0]
+    coordinate: [296, 12.0]
     rotation: 0
     state: enabled
 - name: vector_size
@@ -138,7 +198,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [456, 12.0]
+    coordinate: [432, 12.0]
     rotation: 0
     state: enabled
 - name: PHYSEC_feature_extraction_block_0
@@ -149,12 +209,12 @@ blocks:
     comment: ''
     maxoutbuf: '0'
     minoutbuf: '0'
-    model_path: /workspace/gr-PHYSEC/examples/QExtractor.onnx
+    model_path: /workspace/siwn/gr-PHYSEC/examples/QExtractor.onnx
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1024, 188.0]
+    coordinate: [880, 204.0]
     rotation: 0
     state: enabled
 - name: PHYSEC_feature_quantization_block_0
@@ -170,7 +230,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1304, 188.0]
+    coordinate: [1168, 204.0]
     rotation: 0
     state: enabled
 - name: PHYSEC_privacy_amplification_block_0
@@ -186,7 +246,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1560, 60.0]
+    coordinate: [744, 284.0]
     rotation: 180
     state: enabled
 - name: PHYSEC_reconciliation_block_0
@@ -204,8 +264,8 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1600, 204.0]
-    rotation: 0
+    coordinate: [1224, 284.0]
+    rotation: 180
     state: enabled
 - name: PHYSEC_spectrogram_block_0
   id: PHYSEC_spectrogram_block
@@ -221,31 +281,28 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [784, 180.0]
+    coordinate: [616, 196.0]
     rotation: 0
     state: enabled
-- name: analog_sig_source_x_0
-  id: analog_sig_source_x
+- name: analog_noise_source_x_0
+  id: analog_noise_source_x
   parameters:
     affinity: ''
     alias: ''
-    amp: '1'
-    comment: Probe signal source
-    freq: '1000000'
+    amp: '0.01'
+    comment: ''
     maxoutbuf: '0'
     minoutbuf: '0'
-    offset: '0'
-    phase: '0'
-    samp_rate: sample_rate
+    noise_type: analog.GR_GAUSSIAN
+    seed: '0'
     type: complex
-    waveform: analog.GR_SIN_WAVE
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [336, 580.0]
+    coordinate: [480, 660.0]
     rotation: 0
-    state: enabled
+    state: disabled
 - name: analog_sig_source_x_0_0
   id: analog_sig_source_x
   parameters:
@@ -265,7 +322,61 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [24, 356.0]
+    coordinate: [280, 484.0]
+    rotation: 0
+    state: enabled
+- name: blocks_add_xx_0
+  id: blocks_add_xx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    num_inputs: '2'
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [728, 648.0]
+    rotation: 0
+    state: disabled
+- name: blocks_file_sink_0
+  id: blocks_file_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    append: 'False'
+    comment: ''
+    file: bob_rx.iq
+    type: complex
+    unbuffered: 'False'
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [80, 636.0]
+    rotation: 0
+    state: disabled
+- name: blocks_file_sink_0_0
+  id: blocks_file_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    append: 'False'
+    comment: ''
+    file: bob_tx.iq
+    type: complex
+    unbuffered: 'False'
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [864, 788.0]
     rotation: 0
     state: disabled
 - name: blocks_file_sink_key_0
@@ -283,7 +394,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1360, 36.0]
+    coordinate: [512, 260.0]
     rotation: 180
     state: enabled
 - name: blocks_file_sink_vec
@@ -293,7 +404,7 @@ blocks:
     alias: ''
     append: 'False'
     comment: Dump collected vectors (placeholder)
-    file: iqfile.iq
+    file: bob.iq
     type: complex
     unbuffered: 'False'
     vlen: '8192'
@@ -301,27 +412,9 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [784, 316.0]
-    rotation: 0
-    state: enabled
-- name: blocks_head_0
-  id: blocks_head
-  parameters:
-    affinity: ''
-    alias: ''
-    comment: Limit number of samples collected
-    maxoutbuf: '0'
-    minoutbuf: '0'
-    num_items: vector_size
-    type: complex
-    vlen: '1'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [408, 236.0]
-    rotation: 0
-    state: enabled
+    coordinate: [240, 292.0]
+    rotation: 180
+    state: disabled
 - name: blocks_message_debug_0
   id: blocks_message_debug
   parameters:
@@ -333,9 +426,9 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [640, 720.0]
+    coordinate: [1056, 512.0]
     rotation: 0
-    state: enabled
+    state: disabled
 - name: blocks_mute_xx_0
   id: blocks_mute_xx
   parameters:
@@ -350,26 +443,9 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [688, 624.0]
+    coordinate: [544, 528.0]
     rotation: 0
     state: enabled
-- name: blocks_null_sink_0
-  id: blocks_null_sink
-  parameters:
-    affinity: ''
-    alias: ''
-    bus_structure_sink: '[[0,],]'
-    comment: ''
-    num_inputs: '1'
-    type: complex
-    vlen: '1'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [1032, 760.0]
-    rotation: 0
-    state: disabled
 - name: blocks_stream_to_vector_0
   id: blocks_stream_to_vector
   parameters:
@@ -385,7 +461,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [576, 240.0]
+    coordinate: [440, 208.0]
     rotation: 0
     state: enabled
 - name: blocks_stream_to_vector_1
@@ -403,15 +479,15 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1312, 256.0]
+    coordinate: [1288, 416.0]
     rotation: 0
     state: true
 - name: epy_block_0
   id: epy_block
   parameters:
-    _source_code: "from gnuradio import gr\nimport pmt\n\nclass blk(gr.basic_block):\n\
-      \    def __init__(self):\n        gr.basic_block.__init__(self, name='Bob Controller',\
-      \ in_sig=None, out_sig=None)\n        self.message_port_register_in(pmt.intern('msg_in'))\n\
+    _source_code: "from gnuradio import gr\nimport pmt, os, threading, time\n\nclass\
+      \ blk(gr.basic_block):\n    def __init__(self):\n        gr.basic_block.__init__(self,\
+      \ name='Bob Controller', in_sig=None, out_sig=None)\n        self.message_port_register_in(pmt.intern('msg_in'))\n\
       \        self.message_port_register_in(pmt.intern('evt_in'))\n        self.message_port_register_out(pmt.intern('tx_mute'))\n\
       \        self.message_port_register_out(pmt.intern('out'))\n        self.message_port_register_out(pmt.intern('peer'))\n\
       \        self.message_port_register_out(pmt.intern('rx_ctrl'))\n        self.set_msg_handler(pmt.intern('msg_in'),\
@@ -423,14 +499,15 @@ blocks:
       \ pmt.intern('probe_req'))\n            self.message_port_pub(pmt.intern('tx_mute'),\
       \ pmt.to_pmt(False))\n            self.message_port_pub(pmt.intern('out'), pmt.intern('bob_tx_start'))\n\
       \            self.state = 'txing'\n        elif val == 'alice_tx_start' and\
-      \ self.state in ('txing','tx_done'):\n            self.message_port_pub(pmt.intern('rx_ctrl'),\
-      \ pmt.intern('start'))\n            self.message_port_pub(pmt.intern('out'),\
-      \ pmt.intern('bob_collecting'))\n            self.state = 'collecting'\n   \
-      \     elif val == 'parity_recv':\n            self.message_port_pub(pmt.intern('out'),\
-      \ pmt.intern('bob_parity_recv'))\n        elif val in ('reconcile_ok','reconcile_fail'):\n\
-      \            self.message_port_pub(pmt.intern('out'), pmt.intern('bob_'+val))\n\
-      \            self.message_port_pub(pmt.intern('peer'), pmt.intern(val))\n  \
-      \      else:\n            self.message_port_pub(pmt.intern('out'), pmt.intern('bob_evt_'+val))\n\
+      \ self.state in ('txing','tx_done'):\n            time.sleep(0.01)\n       \
+      \     self.message_port_pub(pmt.intern('rx_ctrl'), pmt.intern('start'))\n  \
+      \          self.message_port_pub(pmt.intern('out'), pmt.intern('bob_collecting'))\n\
+      \            self.state = 'collecting'\n        elif val == 'parity_recv':\n\
+      \            self.message_port_pub(pmt.intern('out'), pmt.intern('bob_parity_recv'))\n\
+      \        elif val in ('reconcile_ok','reconcile_fail'):\n            self.message_port_pub(pmt.intern('out'),\
+      \ pmt.intern('bob_'+val))\n            self.message_port_pub(pmt.intern('peer'),\
+      \ pmt.intern(val))\n            self.state = 'idle'\n        else:\n       \
+      \     self.message_port_pub(pmt.intern('out'), pmt.intern('bob_evt_'+val))\n\
       \    def handle_evt(self, msg):\n        val = pmt.symbol_to_string(msg) if\
       \ pmt.is_symbol(msg) else str(pmt.to_python(msg))\n        if val == 'rx_collected'\
       \ and self.state == 'collecting':\n            self.message_port_pub(pmt.intern('tx_mute'),\
@@ -449,7 +526,172 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [408, 432.0]
+    coordinate: [304, 328.0]
+    rotation: 0
+    state: enabled
+- name: epy_block_push_iq
+  id: epy_block
+  parameters:
+    _source_code: "from gnuradio import gr\nimport numpy as np, socket, json, time,\
+      \ threading, os\n\nclass blk(gr.sync_block):\n    def __init__(self, vlen=8192,\
+      \ node_name=\"Bob\"):\n        gr.sync_block.__init__(self, name='Monitor Push\
+      \ IQ', in_sig=[(np.complex64, int(vlen))], out_sig=None)\n        self.vlen\
+      \ = int(vlen)\n        self.node_name = node_name\n        self.host = os.getenv('MONITOR_HOST',\
+      \ '127.0.0.1')\n        self.port = int(os.getenv('MONITOR_PORT', '9999'))\n\
+      \        self.sock = None\n        self._lock = threading.Lock()\n        self._connect()\n\
+      \n    def _connect(self):\n        try:\n            s = socket.socket(socket.AF_INET,\
+      \ socket.SOCK_STREAM)\n            s.settimeout(2.0)\n            s.connect((self.host,\
+      \ self.port))\n            s.settimeout(None)\n            self.sock = s\n \
+      \       except Exception:\n            self.sock = None\n\n    def _send(self,\
+      \ payload):\n        try:\n            if self.sock is None:\n             \
+      \   self._connect()\n            if self.sock:\n                data = (json.dumps(payload)\
+      \ + \"\\n\").encode('utf-8')\n                with self._lock:\n           \
+      \         self.sock.sendall(data)\n        except Exception:\n            self.sock\
+      \ = None\n\n    def work(self, input_items, output_items):\n        vecs = input_items[0]\n\
+      \        for v in vecs:\n            try:\n                data_str = repr([complex(x)\
+      \ for x in v.tolist()])\n                payload = {\"type\": \"data_push\"\
+      , \"data_type\": \"iq_samples\", \"node_name\": self.node_name, \"data\": data_str,\
+      \ \"timestamp\": time.time()}\n                self._send(payload)\n       \
+      \     except Exception:\n                pass\n        return len(vecs)\n"
+    affinity: ''
+    alias: ''
+    comment: Push IQ vectors to monitor
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    node_name: '"Bob"'
+    vlen: vector_size
+  states:
+    _io_cache: ('Monitor Push IQ', 'blk', [('vlen', '8192'), ('node_name', "'Bob'")],
+      [('0', 'complex', 8192)], [], '', ['node_name', 'vlen'])
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [656, 108.0]
+    rotation: 0
+    state: enabled
+- name: epy_block_push_msg
+  id: epy_block
+  parameters:
+    _source_code: "from gnuradio import gr\nimport pmt, socket, json, time, threading,\
+      \ os\n\nclass blk(gr.basic_block):\n    def __init__(self, node_name=\"Bob\"\
+      , count_run_on=\"bob_tx_start\"):\n        gr.basic_block.__init__(self, name='Monitor\
+      \ Push (msg)', in_sig=None, out_sig=None)\n        self.node_name = node_name\n\
+      \        self.count_run_on = str(count_run_on) if count_run_on else \"\"\n \
+      \       self.host = os.getenv('MONITOR_HOST', '127.0.0.1')\n        self.port\
+      \ = int(os.getenv('MONITOR_PORT', '9999'))\n        self.run_number = 0\n  \
+      \      self.sock = None\n        self._lock = threading.Lock()\n        self._connect()\n\
+      \        self.message_port_register_in(pmt.intern('in'))\n        self.set_msg_handler(pmt.intern('in'),\
+      \ self.handle_msg)\n\n    def _connect(self):\n        try:\n            s =\
+      \ socket.socket(socket.AF_INET, socket.SOCK_STREAM)\n            s.settimeout(2.0)\n\
+      \            s.connect((self.host, self.port))\n            s.settimeout(None)\n\
+      \            self.sock = s\n        except Exception:\n            self.sock\
+      \ = None\n\n    def _send(self, payload):\n        try:\n            if self.sock\
+      \ is None:\n                self._connect()\n            if self.sock:\n   \
+      \             data = (json.dumps(payload) + \"\\n\").encode('utf-8')\n     \
+      \           with self._lock:\n                    self.sock.sendall(data)\n\
+      \        except Exception:\n            self.sock = None\n\n    def handle_msg(self,\
+      \ msg):\n        val = pmt.symbol_to_string(msg) if pmt.is_symbol(msg) else\
+      \ str(pmt.to_python(msg))\n        if self.count_run_on and val == self.count_run_on:\n\
+      \            self.run_number += 1\n            self._send({\"type\": \"data_push\"\
+      , \"data_type\": \"run_update\", \"node_name\": self.node_name, \"data\": {\"\
+      run_number\": self.run_number, \"action\": \"start\"}, \"timestamp\": time.time()})\n\
+      \        self._send({\"type\": \"data_push\", \"data_type\": \"protocol_step\"\
+      , \"node_name\": self.node_name, \"data\": {\"step\": val}, \"timestamp\": time.time()})\n"
+    affinity: ''
+    alias: ''
+    comment: Push protocol steps and run updates to monitor
+    count_run_on: '"bob_tx_start"'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    node_name: '"Bob"'
+  states:
+    _io_cache: ('Monitor Push (msg)', 'blk', [('node_name', "'Bob'"), ('count_run_on',
+      "'bob_tx_start'")], [('in', 'message', 1)], [], '', ['count_run_on', 'node_name'])
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [432, 108.0]
+    rotation: 0
+    state: enabled
+- name: epy_block_push_quant
+  id: epy_block
+  parameters:
+    _source_code: "from gnuradio import gr\nimport numpy as np, socket, json, time,\
+      \ threading, os\n\nclass blk(gr.sync_block):\n    def __init__(self, vlen=512,\
+      \ node_name=\"Bob\"):\n        gr.sync_block.__init__(self, name='Monitor Push\
+      \ Quantized', in_sig=[(np.uint8, int(vlen))], out_sig=None)\n        self.vlen\
+      \ = int(vlen)\n        self.node_name = node_name\n        self.host = os.getenv('MONITOR_HOST',\
+      \ '127.0.0.1')\n        self.port = int(os.getenv('MONITOR_PORT', '9999'))\n\
+      \        self.sock = None\n        self._lock = threading.Lock()\n        self._connect()\n\
+      \n    def _connect(self):\n        try:\n            s = socket.socket(socket.AF_INET,\
+      \ socket.SOCK_STREAM)\n            s.settimeout(2.0)\n            s.connect((self.host,\
+      \ self.port))\n            s.settimeout(None)\n            self.sock = s\n \
+      \       except Exception:\n            self.sock = None\n\n    def _send(self,\
+      \ payload):\n        try:\n            if self.sock is None:\n             \
+      \   self._connect()\n            if self.sock:\n                data = (json.dumps(payload)\
+      \ + \"\\n\").encode('utf-8')\n                with self._lock:\n           \
+      \         self.sock.sendall(data)\n        except Exception:\n            self.sock\
+      \ = None\n\n    def work(self, input_items, output_items):\n        vecs = input_items[0]\n\
+      \        for v in vecs:\n            try:\n                data_list = [int(x)\
+      \ for x in (v.tolist() if hasattr(v, 'tolist') else list(v))]\n            \
+      \    payload = {\"type\": \"data_push\", \"data_type\": \"quantized_bits\",\
+      \ \"node_name\": self.node_name, \"data\": data_list, \"timestamp\": time.time()}\n\
+      \                self._send(payload)\n            except Exception:\n      \
+      \          pass\n        return len(vecs)\n"
+    affinity: ''
+    alias: ''
+    comment: Push quantized bit vectors to monitor
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    node_name: '"Bob"'
+    vlen: '512'
+  states:
+    _io_cache: ('Monitor Push Quantized', 'blk', [('vlen', '512'), ('node_name', "'Bob'")],
+      [('0', 'byte', 512)], [], '', ['node_name', 'vlen'])
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1216, 116.0]
+    rotation: 180
+    state: enabled
+- name: epy_block_push_spec
+  id: epy_block
+  parameters:
+    _source_code: "from gnuradio import gr\nimport numpy as np, socket, json, time,\
+      \ threading, os\n\nclass blk(gr.sync_block):\n    def __init__(self, node_name=\"\
+      Bob\"):\n        gr.sync_block.__init__(self, name='Monitor Push Spectrogram',\
+      \ in_sig=[(np.float32, (6324))], out_sig=None)\n        self.node_name = node_name\n\
+      \        self.host = os.getenv('MONITOR_HOST', '127.0.0.1')\n        self.port\
+      \ = int(os.getenv('MONITOR_PORT', '9999'))\n        self.sock = None\n     \
+      \   self._lock = threading.Lock()\n        self._connect()\n\n    def _connect(self):\n\
+      \        try:\n            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)\n\
+      \            s.settimeout(2.0)\n            s.connect((self.host, self.port))\n\
+      \            s.settimeout(None)\n            self.sock = s\n        except Exception:\n\
+      \            self.sock = None\n\n    def _send(self, payload):\n        try:\n\
+      \            if self.sock is None:\n                self._connect()\n      \
+      \      if self.sock:\n                data = (json.dumps(payload) + \"\\n\"\
+      ).encode('utf-8')\n                with self._lock:\n                    self.sock.sendall(data)\n\
+      \        except Exception:\n            self.sock = None\n\n    def work(self,\
+      \ input_items, output_items):\n        specs = input_items[0]\n        for spec\
+      \ in specs:\n            try:\n                data_list = spec.tolist() if\
+      \ hasattr(spec, 'tolist') else [list(row) for row in spec]\n               \
+      \ payload = {\"type\": \"data_push\", \"data_type\": \"spectrogram\", \"node_name\"\
+      : self.node_name, \"data\": data_list, \"timestamp\": time.time()}\n       \
+      \         self._send(payload)\n            except Exception:\n             \
+      \   pass\n        return len(specs)\n"
+    affinity: ''
+    alias: ''
+    comment: Push spectrograms to monitor
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    node_name: '"Bob"'
+  states:
+    _io_cache: ('Monitor Push Spectrogram', 'blk', [('node_name', "'Bob'")], [('0',
+      'float', 6324)], [], '', ['node_name'])
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [904, 116.0]
     rotation: 0
     state: enabled
 - name: epy_block_reconcile_monitor
@@ -474,7 +716,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1672, 296.0]
+    coordinate: [1032, 320.0]
     rotation: 180
     state: enabled
 - name: epy_block_rx_gate
@@ -505,7 +747,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [240, 240.0]
+    coordinate: [264, 208.0]
     rotation: 0
     state: enabled
 - name: iio_pluto_sink_0
@@ -531,7 +773,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [984, 572.0]
+    coordinate: [696, 484.0]
     rotation: 0
     state: enabled
 - name: iio_pluto_source_0
@@ -565,6 +807,49 @@ blocks:
     coordinate: [16, 156.0]
     rotation: 0
     state: enabled
+- name: network_udp_sink_0
+  id: network_udp_sink
+  parameters:
+    addr: 127.0.0.1
+    affinity: ''
+    alias: ''
+    comment: ''
+    header: '0'
+    payloadsize: '1472'
+    port: '3000'
+    send_eof: 'False'
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [872, 628.0]
+    rotation: 0
+    state: disabled
+- name: network_udp_source_0
+  id: network_udp_source
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    header: '0'
+    ipv6: 'False'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    notify_missed: 'False'
+    payloadsize: '1472'
+    port: '2000'
+    src_zeros: 'False'
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [24, 276.0]
+    rotation: 0
+    state: disabled
 - name: pdu_pdu_to_tagged_stream_0
   id: pdu_pdu_to_tagged_stream
   parameters:
@@ -579,106 +864,9 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1088, 252.0]
+    coordinate: [1048, 412.0]
     rotation: 0
     state: true
-- name: qtgui_time_sink_x_0
-  id: qtgui_time_sink_x
-  parameters:
-    affinity: ''
-    alias: ''
-    alpha1: '1.0'
-    alpha10: '1.0'
-    alpha2: '1.0'
-    alpha3: '1.0'
-    alpha4: '1.0'
-    alpha5: '1.0'
-    alpha6: '1.0'
-    alpha7: '1.0'
-    alpha8: '1.0'
-    alpha9: '1.0'
-    autoscale: 'False'
-    axislabels: 'True'
-    color1: blue
-    color10: dark blue
-    color2: red
-    color3: green
-    color4: black
-    color5: cyan
-    color6: magenta
-    color7: yellow
-    color8: dark red
-    color9: dark green
-    comment: ''
-    ctrlpanel: 'False'
-    entags: 'True'
-    grid: 'False'
-    gui_hint: ''
-    label1: Signal 1
-    label10: Signal 10
-    label2: Signal 2
-    label3: Signal 3
-    label4: Signal 4
-    label5: Signal 5
-    label6: Signal 6
-    label7: Signal 7
-    label8: Signal 8
-    label9: Signal 9
-    legend: 'True'
-    marker1: '-1'
-    marker10: '-1'
-    marker2: '-1'
-    marker3: '-1'
-    marker4: '-1'
-    marker5: '-1'
-    marker6: '-1'
-    marker7: '-1'
-    marker8: '-1'
-    marker9: '-1'
-    name: '""'
-    nconnections: '1'
-    size: '1024'
-    srate: sample_rate
-    stemplot: 'False'
-    style1: '1'
-    style10: '1'
-    style2: '1'
-    style3: '1'
-    style4: '1'
-    style5: '1'
-    style6: '1'
-    style7: '1'
-    style8: '1'
-    style9: '1'
-    tr_chan: '0'
-    tr_delay: '0'
-    tr_level: '0.0'
-    tr_mode: qtgui.TRIG_MODE_FREE
-    tr_slope: qtgui.TRIG_SLOPE_POS
-    tr_tag: '""'
-    type: complex
-    update_time: '0.10'
-    width1: '1'
-    width10: '1'
-    width2: '1'
-    width3: '1'
-    width4: '1'
-    width5: '1'
-    width6: '1'
-    width7: '1'
-    width8: '1'
-    width9: '1'
-    ylabel: Amplitude
-    ymax: '1'
-    ymin: '-1'
-    yunit: '""'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [512, 292.0]
-    rotation: 0
-    state: disabled
 - name: zeromq_pub_msg_sink_0
   id: zeromq_pub_msg_sink
   parameters:
@@ -692,8 +880,8 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [696, 516.0]
-    rotation: 0
+    coordinate: [784, 340.0]
+    rotation: 180
     state: enabled
 - name: zeromq_pub_msg_sink_ctrl
   id: zeromq_pub_msg_sink
@@ -708,7 +896,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [688, 436.0]
+    coordinate: [536, 380.0]
     rotation: 0
     state: enabled
 - name: zeromq_sub_msg_source_0
@@ -726,7 +914,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [32, 500.0]
+    coordinate: [16, 380.0]
     rotation: 0
     state: enabled
 - name: zeromq_sub_msg_source_parity
@@ -744,13 +932,13 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [824, 244.0]
+    coordinate: [776, 404.0]
     rotation: 0
     state: enabled
 - name: zeromq_sub_msg_source_trigger
   id: zeromq_sub_msg_source
   parameters:
-    address: '"tcp://192.168.0.142:9103"'
+    address: peer_trigger_addr
     affinity: ''
     alias: ''
     bind: 'False'
@@ -762,26 +950,31 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [96, 700.0]
+    coordinate: [16, 460.0]
     rotation: 0
     state: enabled
 
 connections:
 - [PHYSEC_feature_extraction_block_0, '0', PHYSEC_feature_quantization_block_0, '0']
 - [PHYSEC_feature_quantization_block_0, '0', PHYSEC_reconciliation_block_0, '0']
+- [PHYSEC_feature_quantization_block_0, '0', epy_block_push_quant, '0']
 - [PHYSEC_privacy_amplification_block_0, '0', blocks_file_sink_key_0, '0']
 - [PHYSEC_reconciliation_block_0, '0', PHYSEC_privacy_amplification_block_0, '0']
 - [PHYSEC_reconciliation_block_0, '1', epy_block_reconcile_monitor, '0']
 - [PHYSEC_spectrogram_block_0, '0', PHYSEC_feature_extraction_block_0, '0']
-- [analog_sig_source_x_0, '0', blocks_mute_xx_0, '0']
-- [analog_sig_source_x_0_0, '0', epy_block_rx_gate, '0']
-- [blocks_head_0, '0', blocks_stream_to_vector_0, '0']
-- [blocks_mute_xx_0, '0', blocks_null_sink_0, '0']
+- [PHYSEC_spectrogram_block_0, '0', epy_block_push_spec, '0']
+- [analog_noise_source_x_0, '0', blocks_add_xx_0, '1']
+- [analog_sig_source_x_0_0, '0', blocks_mute_xx_0, '0']
+- [blocks_add_xx_0, '0', blocks_file_sink_0_0, '0']
+- [blocks_add_xx_0, '0', network_udp_sink_0, '0']
+- [blocks_mute_xx_0, '0', blocks_add_xx_0, '0']
 - [blocks_mute_xx_0, '0', iio_pluto_sink_0, '0']
 - [blocks_stream_to_vector_0, '0', PHYSEC_spectrogram_block_0, '0']
 - [blocks_stream_to_vector_0, '0', blocks_file_sink_vec, '0']
+- [blocks_stream_to_vector_0, '0', epy_block_push_iq, '0']
 - [blocks_stream_to_vector_1, '0', PHYSEC_reconciliation_block_0, '1']
 - [epy_block_0, out, blocks_message_debug_0, print]
+- [epy_block_0, out, epy_block_push_msg, in]
 - [epy_block_0, out, zeromq_pub_msg_sink_0, in]
 - [epy_block_0, peer, blocks_message_debug_0, print]
 - [epy_block_0, peer, zeromq_pub_msg_sink_ctrl, in]
@@ -792,11 +985,12 @@ connections:
 - [epy_block_reconcile_monitor, out, blocks_message_debug_0, print]
 - [epy_block_reconcile_monitor, out, epy_block_0, msg_in]
 - [epy_block_reconcile_monitor, out, zeromq_pub_msg_sink_0, in]
-- [epy_block_rx_gate, '0', blocks_head_0, '0']
-- [epy_block_rx_gate, '0', qtgui_time_sink_x_0, '0']
+- [epy_block_rx_gate, '0', blocks_stream_to_vector_0, '0']
 - [epy_block_rx_gate, evt, blocks_message_debug_0, print]
 - [epy_block_rx_gate, evt, epy_block_0, evt_in]
 - [iio_pluto_source_0, '0', epy_block_rx_gate, '0']
+- [network_udp_source_0, '0', blocks_file_sink_0, '0']
+- [network_udp_source_0, '0', epy_block_rx_gate, '0']
 - [pdu_pdu_to_tagged_stream_0, '0', blocks_stream_to_vector_1, '0']
 - [zeromq_sub_msg_source_0, out, blocks_message_debug_0, print]
 - [zeromq_sub_msg_source_0, out, epy_block_0, msg_in]
