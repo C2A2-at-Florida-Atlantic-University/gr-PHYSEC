@@ -289,7 +289,7 @@ blocks:
   parameters:
     affinity: ''
     alias: ''
-    amp: '0.01'
+    amp: '0.05'
     comment: ''
     maxoutbuf: '0'
     minoutbuf: '0'
@@ -475,7 +475,7 @@ blocks:
     maxoutbuf: '0'
     minoutbuf: '0'
   states:
-    _io_cache: ('Bob Controller', 'blk', [], [('evt_in', 'message', 1), ('msg_in',
+    _io_cache: ('Bob Controller', 'blk', [], [('msg_in', 'message', 1), ('evt_in',
       'message', 1)], [('rx_ctrl', 'message', 1), ('peer', 'message', 1), ('out',
       'message', 1), ('tx_mute', 'message', 1)], '', [])
     bus_sink: false
@@ -771,7 +771,7 @@ blocks:
     comment: ''
     header: '0'
     payloadsize: '1472'
-    port: '3000'
+    port: '2000'
     send_eof: 'False'
     type: complex
     vlen: '1'
@@ -794,7 +794,7 @@ blocks:
     minoutbuf: '0'
     notify_missed: 'False'
     payloadsize: '1472'
-    port: '2000'
+    port: '3000'
     src_zeros: 'False'
     type: complex
     vlen: '1'
