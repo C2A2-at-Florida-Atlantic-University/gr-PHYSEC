@@ -33,11 +33,11 @@ class PhysecDynamicVisualizer:
         self.alice_spectrogram = None
         self.bob_spectrogram = None
         
-        # Historical statistics
-        self.bdr_history = deque(maxlen=max_runs)
-        self.success_history = deque(maxlen=max_runs)
-        self.run_numbers = deque(maxlen=max_runs)
-        self.timing_history = deque(maxlen=max_runs)  # Key generation time in milliseconds
+        # Historical statistics (keep full history)
+        self.bdr_history = deque()              # percentage values
+        self.success_history = deque()          # booleans
+        self.run_numbers = deque()              # integer run numbers
+        self.timing_history = deque()           # milliseconds
         
         # Colorbar tracking to prevent duplicates
         self.colorbars = {}
@@ -144,7 +144,6 @@ class PhysecDynamicVisualizer:
         ax.set_ylabel('BDR (%)', fontsize=8)
         ax.tick_params(labelsize=8)
         ax.grid(True, alpha=0.3)
-        ax.set_xlim(0, self.max_runs)
         ax.set_ylim(0, 30)
         
         # Success rate statistics
@@ -154,7 +153,6 @@ class PhysecDynamicVisualizer:
         ax.set_ylabel('Success Rate (%)', fontsize=8)
         ax.tick_params(labelsize=8)
         ax.grid(True, alpha=0.3)
-        ax.set_xlim(0, self.max_runs)
         ax.set_ylim(0, 100)
         
         # Key generation timing statistics
@@ -164,7 +162,6 @@ class PhysecDynamicVisualizer:
         ax.set_ylabel('Time (ms)', fontsize=8)
         ax.tick_params(labelsize=8)
         ax.grid(True, alpha=0.3)
-        ax.set_xlim(0, self.max_runs)
         ax.set_ylim(0, 5000)  # Start with 5 second max, will auto-adjust
         
     def update_step(self, node, step):
@@ -350,7 +347,7 @@ class PhysecDynamicVisualizer:
         ax.set_ylabel('BDR (%)', fontsize=8)
         ax.tick_params(labelsize=8)
         ax.grid(True, alpha=0.3)
-        ax.set_xlim(0, max(self.max_runs, self.current_run + 1))
+        ax.set_xlim(0, max(10, self.current_run + 1))
         ax.set_ylim(0, 30)
         
         if len(self.bdr_history) > 0:
@@ -370,7 +367,7 @@ class PhysecDynamicVisualizer:
         ax.set_ylabel('Success Rate (%)', fontsize=8)
         ax.tick_params(labelsize=8)
         ax.grid(True, alpha=0.3)
-        ax.set_xlim(0, max(self.max_runs, self.current_run + 1))
+        ax.set_xlim(0, max(10, self.current_run + 1))
         ax.set_ylim(0, 100)
         
         if len(self.success_history) > 0:
@@ -418,7 +415,7 @@ class PhysecDynamicVisualizer:
         ax.set_ylabel('Time (ms)', fontsize=8)
         ax.tick_params(labelsize=8)
         ax.grid(True, alpha=0.3)
-        ax.set_xlim(0, max(self.max_runs, self.current_run + 1))
+        ax.set_xlim(0, max(10, self.current_run + 1))
         
         if len(self.timing_history) > 0:
             # Auto-adjust y-axis based on data
