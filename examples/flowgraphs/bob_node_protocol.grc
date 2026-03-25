@@ -56,7 +56,7 @@ blocks:
     bus_structure: null
     coordinate: [888, 12.0]
     rotation: 0
-    state: enabled
+    state: disabled
 - name: monitor_addr
   id: variable
   parameters:
@@ -66,9 +66,9 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [696, 92.0]
+    coordinate: [1040, 80.0]
     rotation: 0
-    state: disabled
+    state: enabled
 - name: parity_len
   id: variable
   parameters:
@@ -316,6 +316,7 @@ blocks:
     offset: '0'
     phase: '0'
     samp_rate: sample_rate
+    showports: 'False'
     type: complex
     waveform: analog.GR_SIN_WAVE
   states:
@@ -368,6 +369,7 @@ blocks:
     alias: ''
     comment: ''
     en_uvec: 'True'
+    log_level: info
   states:
     bus_sink: false
     bus_source: false
@@ -475,7 +477,7 @@ blocks:
     maxoutbuf: '0'
     minoutbuf: '0'
   states:
-    _io_cache: ('Bob Controller', 'blk', [], [('msg_in', 'message', 1), ('evt_in',
+    _io_cache: ('Bob Controller', 'blk', [], [('evt_in', 'message', 1), ('msg_in',
       'message', 1)], [('rx_ctrl', 'message', 1), ('peer', 'message', 1), ('out',
       'message', 1), ('tx_mute', 'message', 1)], '', [])
     bus_sink: false
@@ -565,7 +567,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [408, 124.0]
+    coordinate: [424, 136.0]
     rotation: 0
     state: enabled
 - name: epy_block_push_quant
@@ -646,7 +648,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [904, 116.0]
+    coordinate: [912, 140.0]
     rotation: 0
     state: enabled
 - name: epy_block_reconcile_monitor
@@ -953,3 +955,4 @@ connections:
 
 metadata:
   file_format: 1
+  grc_version: 3.10.12.0

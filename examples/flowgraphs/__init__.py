@@ -2,7 +2,7 @@
 PHYSEC Flowgraphs Module
 
 This module provides factory functions for creating GNU Radio flowgraphs
-for the PHYSEC quantum key generation system.
+for the PHYSEC key generation system.
 """
 
 # Individual component flowgraphs
@@ -70,4 +70,4 @@ __all__ = [
 # Version information
 __version__ = "1.0.0"
 __author__ = "Jose Sanchez"
-__description__ = "Modular GNU Radio flowgraphs for PHYSEC quantum key generation"
+__description__ = "Modular GNU Radio flowgraphs for PHYSEC key generation"

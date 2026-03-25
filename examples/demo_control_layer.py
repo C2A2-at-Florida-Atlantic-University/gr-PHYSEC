@@ -36,7 +36,7 @@ def demo_protocol(max_runs=5):
     print("=" * 60)
     print()
     
-    print("This demo shows the 9-step quantum key generation protocol:")
+    print("This demo shows the 9-step key generation protocol:")
     print("1. Alice sends key generation request")
     print("2. Bob accepts and transmits sinusoidal probe")
     print("3. Alice collects samples and transmits her probe")

@@ -1,6 +1,6 @@
 # PHYSEC Flowgraphs
 
-This directory contains GNU Radio Companion (GRC) flowgraphs for the PHYSEC quantum key generation protocol.
+This directory contains GNU Radio Companion (GRC) flowgraphs for the PHYSEC key generation protocol.
 
 ## Working GRC Files
 

@@ -1,6 +1,6 @@
 # PHYSEC Control Layer
 
-Bidirectional TCP/IP communication for quantum key generation between Alice and Bob nodes using the PHYSEC library.
+Bidirectional TCP/IP communication for key generation between Alice and Bob nodes using the PHYSEC library.
 
 ## 🚀 Quick Start
 
@@ -193,4 +193,4 @@ python3 /workspace/siwn/gr-PHYSEC/examples/flowgraphs/alice_node_protocol.py
 - **Reduce I/O during debugging:**
   - Disable or remove heavy `file_sink` blocks to avoid filesystem overhead and permission issues.
 
-Ready for quantum key generation! 🚀
+Ready for key generation! 🚀

@@ -3,7 +3,7 @@
 """
 PHYSEC Control Layer for Key Generation
 Implements bidirectional TCP/IP communication between Alice and Bob nodes
-for quantum key generation using GNU Radio and PlutoSDR.
+for key generation using GNU Radio and PlutoSDR.
 """
 
 import socket
